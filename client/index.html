@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph to Music - Створення музики з математичних функцій</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- D3.js для візуалізації -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <!-- Plotly.js альтернатива для візуалізації -->
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <!-- MIDI.js для роботи зі звуком -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/midi.js/0.3.1/midi.min.js"></script>
+    
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Graph to Music</h1>
+            <p>Створення музики з математичних функцій</p>
+        </div>
+    </header>
+
+    <nav>
+        <a href="#" class="active" id="nav-generator">Генератор</a>
+        <a href="#" id="nav-examples">Приклади</a>
+        <a href="#" id="nav-info">Інформація</a>
+        <a href="#" id="nav-instructions">Інструкції</a>
+        <a href="#" id="nav-login">Увійти</a>
+        <a href="#" id="nav-logout" style="display:none;">Вихід</a>
+    </nav>
+
+    <main>
+        <div class="container">
+            <!-- Generator Page -->
+            <div class="page" id="generator-page">
+                <div class="generator-container">
+                    <input type="text" class="function-input" placeholder="Введіть математичну функцію (наприклад: sin(x))">
+                    <button class="btn-generate">Генерувати</button>
+                    <div class="loading">Генерація...</div>
+                    
+                    
+                    <div class="result-container" style="display: block;">
+                        <div class="music-player" style="display: none;">
+                            <span>Натисніть, щоб послухати результат</span>
+                        </div>
+                        <div class="progress-section" style="margin: 10px 0;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                                <span id="currentTime">0:00</span>
+                                <span id="totalTime">0:00</span>
+                            </div>
+                            <div class="progress-container" style="position: relative; width: 100%; height: 8px; background: #ddd; border-radius: 4px; cursor: pointer;">
+                                <div class="progress-bar" style="width: 0%; height: 100%; background: #00aaff; transition: width 0.1s linear;"></div>
+                            </div>
+                        </div>
+                        <div class="controls">
+                            <button class="btn-play">Відтворити</button>
+                            <button class="btn-pause">Пауза</button>
+                            <button class="btn-stop">Стоп</button>
+                            <button  class="btn-save" onclick="window.audioPlayer?.saveAudioFromCurrentData()">Зберегти аудіо</button>
+                            <button class="btn-modify">Змінити</button>
+                        </div>
+                        
+                        <div class="audio-controls">
+                            <label>Інтервал X:
+                                <input type="number" id="xMin" value="-10">
+                                до
+                                <input type="number" id="xMax" value="10">
+                            </label>
+
+                            <label>Кількість точок:
+                                <input type="range" id="pointCount" min="10" max="500" value="100">
+                                <span id="pointCountValue">100</span>
+                            </label>
+
+                            <label>Тривалість ноти:
+                                <input type="range" id="noteDuration" min="0.05" max="1" step="0.05" value="0.2">
+                                <span id="noteDurationValue">0.2s</span>
+                            </label>
+
+                            <button onclick="applySettings()">Застосувати</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Examples Page -->
+            <div class="page" id="examples-page" style="display: none;">
+                <h2 style="text-align: center; margin-bottom: 30px;">Приклади функцій</h2>
+                <div class="examples-container">
+                    <div class="example-card">
+                        <h3>Синусоїда</h3>
+                        <div class="function">sin(x)</div>
+                        <div class="example-graph" id="example-graph-1" data-function="sin(x)"></div>
+                        <p>Класична хвильова форма, що створює плавні переходи</p>
+                        <button class="try-example" data-function="sin(x)">Спробувати</button>
+                    </div>
+                    <div class="example-card">
+                        <h3>Складна хвиля</h3>
+                        <div class="function">sin(x) + sin(2*x)/2</div>
+                        <div class="example-graph" id="example-graph-2" data-function="sin(x) + sin(2*x)/2"></div>
+                        <p>Комбінація синусоїд різної частоти</p>
+                        <button class="try-example" data-function="sin(x) + sin(2*x)/2">Спробувати</button>
+                    </div>
+                    <div class="example-card">
+                        <h3>Експонента</h3>
+                        <div class="function">exp(-x/10)*sin(x)</div>
+                        <div class="example-graph" id="example-graph-3" data-function="exp(-x/10)*sin(x)"></div>
+                        <p>Поступове затухання звуку</p>
+                        <button class="try-example" data-function="exp(-x/10)*sin(x)">Спробувати</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Page -->
+
+<div class="page" id="info-page" style="display: none;">
+  <div class="about-container">
+    
+    <div class="info-section">
+      <div class="info-icon">🎵</div>
+      <div>
+        <h2>Про Graph to Music</h2>
+        <p><strong>Graph to Music</strong> — це інноваційний інструмент, що дозволяє перетворювати математичні функції на музику. Наш сервіс використовує значення функцій для створення унікальних звукових композицій.</p>
+        <p>Створіть свою власну мелодію, просто ввівши математичну функцію! Експериментуйте з різними функціями та відкривайте для себе цікаві звукові структури.</p>
+        <p>Цей проєкт знаходиться на перетині математики, музики та технологій і демонструє, як абстрактні концепції можуть бути перетворені на щось конкретне та відчутне.</p>
+      </div>
+    </div>
+
+    <hr class="info-divider" />
+
+    <div class="info-section">
+      <div class="info-icon">⚙️</div>
+      <div>
+        <h2>Як це працює</h2>
+        <p>Алгоритм обробляє введену користувачем функцію та обчислює її значення для ряду точок на осі <code>x</code>. Ці значення потім перетворюються на частоти звуків, які разом утворюють музичну композицію.</p>
+        <p>Різні типи функцій створюють різні звукові патерни. Наприклад, періодичні функції — такі як <code>sin(x)</code> або <code>cos(x)</code> — створюють циклічні мелодії, тоді як поліноміальні функції можуть створювати більш динамічні звуки.</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+
+            <!-- Instructions Page -->
+            <div class="page" id="instructions-page" style="display: none;">
+                <div class="instructions-container">
+                    <h2>Інструкції з використання</h2>
+                    <ol>
+                        <li>Перейдіть на вкладку "Генератор".</li>
+                        <li>Введіть математичну функцію у поле вводу (наприклад: sin(x), x^2, exp(-x)*cos(x)).</li>
+                        <li>Натисніть кнопку "Генерувати".</li>
+                        <li>Зачекайте завершення процесу генерації.</li>
+                        <li>Натисніть кнопку відтворення, щоб послухати створену мелодію.</li>
+                        <li>Збережіть результат, якщо він вам подобається.</li>
+                        <li>Для зміни функції натисніть кнопку "Змінити".</li>
+                    </ol>
+                    <h2>Підтримувані функції</h2>
+                    <ul>
+                        <li>Тригонометричні: sin(x), cos(x), tan(x)</li>
+                        <li>Експоненціальні: exp(x), log(x)</li>
+                        <li>Поліноміальні: x^2, x^3, sqrt(x)</li>
+                        <li>Комбінації функцій з операторами +, -, *, /</li>
+                    </ul>
+                    <div class="note">
+                        <strong>Примітка:</strong> Для найкращих результатів рекомендується використовувати функції, значення яких знаходяться в межах від -10 до 10.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sign In Page -->
+            <div class="page" id="signin-page" style="display: none;">
+                <div class="form-container">
+                    <form class="auth-form" id="signin-form">
+                        <h2 style="text-align: center;">Увійти</h2>
+                        <input type="email" id="signin-email" placeholder="Email" required>
+                        <input type="password" id="signin-password" placeholder="Пароль" required>
+                        <button type="submit">Увійти</button>
+                        <p>Не маєте облікового запису? <a href="#" id="to-signup">Зареєструватися</a></p>
+                        <div class="auth-message"></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Sign Up Page -->
+            <div class="page" id="signup-page" style="display: none;">
+                <div class="form-container">
+                    <form class="auth-form" id="signup-form">
+                        <h2 style="text-align: center;">Реєстрація</h2>
+                        <input type="email" id="signup-email" placeholder="Email" required>
+                        <input type="password" id="signup-password" placeholder="Створити пароль" required>
+                        <input type="password" id="signup-confirm" placeholder="Повторити пароль" required>
+                        <button type="submit">Зареєструватися</button>
+                        <p>Вже маєте обліковий запис? <a href="#" id="to-signin">Увійти</a></p>
+                        <div class="auth-message"></div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- User Dashboard Page (visible only when logged in) -->
+            <div class="page" id="dashboard-page" style="display: none;">
+                <div class="dashboard-container">
+                    <h2>Мої збережені композиції</h2>
+                    <div id="user-compositions" class="user-compositions">
+                        <!-- Compositions will be loaded here -->
+                        <p class="no-compositions">У вас поки немає збережених композицій</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Graph to Music. Всі права захищені.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+    <script src="api.js"></script>
+    <script src="visualization.js"></script>
+    <script src="audioPlayer.js"></script>
+    <script src="navigation.js"></script>
+    <script src="audioEffects.js"></script>
+</body>
+</html>
