@@ -7,12 +7,18 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(cors());
 app.use(express.json());
+const path = require('path');
+
+app.use(express.static(path.join(__dirname, '../client')));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/index.html'));
+});
 
 const uri = 'mongodb://localhost:27017/';
 const client = new MongoClient(uri);
 const secret = 'your_jwt_secret';
 const saltRounds = 10;
-
 let db;
 
 async function connectToDatabase() {
@@ -39,13 +45,12 @@ function authenticateToken(req, res, next) {
     }
 }
 
-
 (async () => {
     db = await connectToDatabase();
     const usersCollection = db.collection('users');
     const compositionsCollection = db.collection('compositions');
 
-
+    // Реєстрація
     app.post('/api/auth/register', async (req, res) => {
         const { email, password } = req.body;
         try {
@@ -84,6 +89,7 @@ function authenticateToken(req, res, next) {
     app.get('/api/auth/verify', authenticateToken, (req, res) => {
         res.json({ success: true });
     });
+
 
     app.post('/api/music/save', authenticateToken, async (req, res) => {
         const { title, function: func } = req.body;
@@ -148,6 +154,7 @@ function authenticateToken(req, res, next) {
 
     app.listen(3000, () => console.log('Server running on http://localhost:3000'));
 })();
+
 
 process.on('SIGINT', async () => {
     try {

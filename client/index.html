@@ -5,19 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Graph to Music - Створення музики з математичних функцій</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- D3.js для візуалізації -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-    <!-- Plotly.js альтернатива для візуалізації -->
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-    <!-- MIDI.js для роботи зі звуком -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/midi.js/0.3.1/midi.min.js"></script>
-    
 </head>
 <body>
     <header>
         <div class="container">
             <h1>Graph to Music</h1>
-            <p>Створення музики з математичних функцій</p>
+            <p>Перетворення графіків у музику та музики у графіки</p>
         </div>
     </header>
 
@@ -32,59 +28,215 @@
 
     <main>
         <div class="container">
-            <!-- Generator Page -->
             <div class="page" id="generator-page">
-                <div class="generator-container">
-                    <input type="text" class="function-input" placeholder="Введіть математичну функцію (наприклад: sin(x))">
-                    <button class="btn-generate">Генерувати</button>
-                    <div class="loading">Генерація...</div>
-                    
-                    
-                    <div class="result-container" style="display: block;">
-                        <div class="music-player" style="display: none;">
-                            <span>Натисніть, щоб послухати результат</span>
+                <div class="generator-container modern-shell">
+                    <div class="hero-panel">
+                        <div class="hero-copy">
+                            <div class="eyebrow">Diploma upgrade</div>
+                            <h2>Функція → музика → зворотний графік</h2>
+                            <p>Оновлена версія проєкту з жанрами, інструментами, сучасним інтерфейсом і прототипом модуля Music → Graph.</p>
                         </div>
-                        <div class="progress-section" style="margin: 10px 0;">
-                            <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                        <div class="hero-badge">Graph to Music</div>
+                    </div>
+
+                    <div class="input-row">
+                        <input type="text" class="function-input" placeholder="Введіть математичну функцію (наприклад: sin(x) + 0.5*sin(3*x))">
+                        <button class="btn-generate">Генерувати</button>
+                    </div>
+
+                    <section class="instrument-section">
+                        <div class="reverse-header">
+                            <div>
+                                <p class="mini-label">Polyphonic mode</p>
+                                <h3>Інструменти та власні графіки</h3>
+                            </div>
+                            <span class="math-badge">multi-function</span>
+                        </div>
+
+                        <p class="reverse-copy">
+                            Кожен інструмент може мати власну математичну функцію, гучність,
+                            тривалість нот та тембр.
+                        </p>
+
+                        <div id="instrumentList" class="instrument-list"></div>
+
+                        <button type="button" id="addInstrumentBtn" class="btn-secondary">
+                            + Додати інструмент
+                        </button>
+                    </section>
+
+                    <div class="generator-grid">
+                        <section class="control-card">
+                            <h3>Параметри генерації</h3>
+
+                            <div class="genre-block">
+                                <label for="genreSelect">Жанр музики</label>
+                                <select id="genreSelect" class="genre-select">
+                                    <option value="original">Original</option>
+                                    <option value="pop">Pop</option>
+                                    <option value="jazz">Jazz</option>
+                                    <option value="edm">EDM</option>
+                                </select>
+                                <div id="genreDescription" class="genre-description"></div>
+                            </div>
+
+                            <div class="genre-block instrument-block">
+                                <label for="instrumentSelect">Інструмент / тембр</label>
+                                <select id="instrumentSelect" class="genre-select"></select>
+                                <div class="genre-description">
+                                    Доступні синтетичні інструменти: <strong>Piano</strong>, <strong>Synth</strong>, <strong>Bass</strong>, <strong>Flute</strong>.
+                                </div>
+                            </div>
+
+                            <div class="options modern-options">
+                                <label><input type="checkbox" id="amplitude-modulation"> Використовувати гучність (volume modulation)</label>
+                                <label><input type="checkbox" id="vibrato"> Використовувати вібрато (vibrato)</label>
+                            </div>
+
+                            <div class="audio-controls modern-audio-controls">
+                                <div class="field-grid">
+                                    <label class="compact-field">
+                                        <span>X min</span>
+                                        <input type="number" id="xMin" value="-10">
+                                    </label>
+                                    <label class="compact-field">
+                                        <span>X max</span>
+                                        <input type="number" id="xMax" value="10">
+                                    </label>
+                                </div>
+
+                                <div class="field-group">
+                                    <label for="pointCount">Кількість точок</label>
+                                    <input type="range" id="pointCount" min="10" max="500" value="100">
+                                    <span id="pointCountValue">100</span>
+                                </div>
+
+                                <div class="field-group">
+                                    <label for="noteDuration">Тривалість ноти</label>
+                                    <input type="range" id="noteDuration" min="0.05" max="1" step="0.05" value="0.2">
+                                    <span id="noteDurationValue">0.2s</span>
+                                </div>
+
+                                <div class="options modern-options secondary-options">
+                                    <label><input type="checkbox" id="amplitudeModulation"> Амплітудна модуляція</label>
+                                    <label><input type="checkbox" id="vibratoEffect"> Вібрато</label>
+                                </div>
+
+                                <button type="button" class="btn-secondary" onclick="applySettings()">Застосувати параметри</button>
+                            </div>
+                        </section>
+
+                        <section class="math-card">
+                            <div class="math-card-header">
+                                <div>
+                                    <p class="mini-label">Математична модель</p>
+                                    <h3>Що відбувається всередині</h3>
+                                </div>
+                                <span class="math-badge">f(x) → sound</span>
+                            </div>
+                            <p class="math-summary">Функція дискретизується на інтервалі, значення нормалізуються і переводяться у висоту, гучність та часову структуру нот.</p>
+                            <ul class="math-list">
+                                <li><strong>Pop:</strong> квантування до діатонічної множини.</li>
+                                <li><strong>Jazz:</strong> swing та робота в просторі mod 12.</li>
+                                <li><strong>EDM:</strong> ритмічні акценти та басові зсуви.</li>
+                                <li><strong>Інструмент:</strong> впливає на хвильову форму та огинаючу.</li>
+                            </ul>
+                            <p class="math-explanation">Окремо додано модуль <strong>Music → Graph</strong>, який аналізує аудіофайл і будує зворотний графік на основі хвильової форми та згладженої амплітуди.</p>
+                        </section>
+                    </div>
+
+                    <div class="loading">Генерація...</div>
+
+                    <div class="visualization-container">
+                        <div id="function-graph"></div>
+                    </div>
+
+                    <div class="result-container" style="display: block;">
+                        <div class="music-player">
+                            <div class="waves"></div>
+                            <span class="player-label">Натисніть, щоб послухати результат</span>
+                        </div>
+                        <div class="progress-section">
+                            <div class="time-row">
                                 <span id="currentTime">0:00</span>
                                 <span id="totalTime">0:00</span>
                             </div>
-                            <div class="progress-container" style="position: relative; width: 100%; height: 8px; background: #ddd; border-radius: 4px; cursor: pointer;">
-                                <div class="progress-bar" style="width: 0%; height: 100%; background: #00aaff; transition: width 0.1s linear;"></div>
+                            <div class="progress-container">
+                                <div class="progress-bar"></div>
                             </div>
                         </div>
                         <div class="controls">
                             <button class="btn-play">Відтворити</button>
                             <button class="btn-pause">Пауза</button>
                             <button class="btn-stop">Стоп</button>
-                            <button  class="btn-save" onclick="window.audioPlayer?.saveAudioFromCurrentData()">Зберегти аудіо</button>
+                            <button class="btn-save">Зберегти</button>
                             <button class="btn-modify">Змінити</button>
                         </div>
-                        
-                        <div class="audio-controls">
-                            <label>Інтервал X:
-                                <input type="number" id="xMin" value="-10">
-                                до
-                                <input type="number" id="xMax" value="10">
-                            </label>
-
-                            <label>Кількість точок:
-                                <input type="range" id="pointCount" min="10" max="500" value="100">
-                                <span id="pointCountValue">100</span>
-                            </label>
-
-                            <label>Тривалість ноти:
-                                <input type="range" id="noteDuration" min="0.05" max="1" step="0.05" value="0.2">
-                                <span id="noteDurationValue">0.2s</span>
-                            </label>
-
-                            <button onclick="applySettings()">Застосувати</button>
-                        </div>
                     </div>
+                
+
+                    <section class="reverse-section">
+                        <div class="reverse-header">
+                            <div>
+                                <p class="mini-label">Reverse mode</p>
+                                <h3>Music → Graph</h3>
+                            </div>
+                            <span class="math-badge">audio → plot</span>
+                        </div>
+                        <p class="reverse-copy">Завантаж аудіофайл і побудуй графік хвильової форми та згладжену криву, яка може слугувати наближеним графічним представленням музичного сигналу.</p>
+                        <div class="reverse-controls">
+                            <input type="file" id="musicFileInput" accept="audio/*">
+                            <button type="button" id="analyzeMusicBtn" class="btn-secondary">Побудувати графік з музики</button>
+                        </div>
+                        <div class="reverse-filter-panel">
+                            <h4>Очищення сигналу перед побудовою графіка</h4>
+
+                            <label>
+                                <input type="checkbox" id="reverseNormalize" checked>
+                                Нормалізація гучності
+                            </label>
+
+                            <label>
+                                <input type="checkbox" id="reverseDenoise" checked>
+                                Приглушення шуму
+                            </label>
+
+                            <label>
+                                <input type="checkbox" id="reverseDeEcho">
+                                Зменшення відлуння
+                            </label>
+
+                            <label>
+                                <input type="checkbox" id="reverseSmooth" checked>
+                                Згладження графіка
+                            </label>
+
+                            <label>
+                                <input type="checkbox" id="reverseHighPass">
+                                Прибрати низькочастотний гул
+                            </label>
+
+                            <label>
+                                <input type="checkbox" id="reverseLowPass">
+                                Прибрати різкі високі частоти
+                            </label>
+                        </div>
+                        
+                        <div id="musicToGraphStatus" class="reverse-status">Оберіть аудіофайл для аналізу.</div>
+                        <div class="visualization-container reverse-graph-box">
+                            <div id="music-graph"></div>
+                        </div>
+                        <div id="musicGraphMeta" class="genre-description reverse-meta"></div>
+                        <div id="musicMathPanel" class="music-math-panel">
+                            <h4>Математичний аналіз графіка</h4>
+                            <div id="musicMathStats" class="music-math-stats">
+                                Після побудови графіка тут з’являться похідні, амплітуда та інші характеристики.
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
 
-            <!-- Examples Page -->
             <div class="page" id="examples-page" style="display: none;">
                 <h2 style="text-align: center; margin-bottom: 30px;">Приклади функцій</h2>
                 <div class="examples-container">
@@ -112,64 +264,41 @@
                 </div>
             </div>
 
-            <!-- Info Page -->
-
-<div class="page" id="info-page" style="display: none;">
-  <div class="about-container">
-    
-    <div class="info-section">
-      <div class="info-icon">🎵</div>
-      <div>
-        <h2>Про Graph to Music</h2>
-        <p><strong>Graph to Music</strong> — це інноваційний інструмент, що дозволяє перетворювати математичні функції на музику. Наш сервіс використовує значення функцій для створення унікальних звукових композицій.</p>
-        <p>Створіть свою власну мелодію, просто ввівши математичну функцію! Експериментуйте з різними функціями та відкривайте для себе цікаві звукові структури.</p>
-        <p>Цей проєкт знаходиться на перетині математики, музики та технологій і демонструє, як абстрактні концепції можуть бути перетворені на щось конкретне та відчутне.</p>
-      </div>
-    </div>
-
-    <hr class="info-divider" />
-
-    <div class="info-section">
-      <div class="info-icon">⚙️</div>
-      <div>
-        <h2>Як це працює</h2>
-        <p>Алгоритм обробляє введену користувачем функцію та обчислює її значення для ряду точок на осі <code>x</code>. Ці значення потім перетворюються на частоти звуків, які разом утворюють музичну композицію.</p>
-        <p>Різні типи функцій створюють різні звукові патерни. Наприклад, періодичні функції — такі як <code>sin(x)</code> або <code>cos(x)</code> — створюють циклічні мелодії, тоді як поліноміальні функції можуть створювати більш динамічні звуки.</p>
-      </div>
-    </div>
-
-  </div>
-</div>
-
-
-
-            <!-- Instructions Page -->
-            <div class="page" id="instructions-page" style="display: none;">
-                <div class="instructions-container">
-                    <h2>Інструкції з використання</h2>
-                    <ol>
-                        <li>Перейдіть на вкладку "Генератор".</li>
-                        <li>Введіть математичну функцію у поле вводу (наприклад: sin(x), x^2, exp(-x)*cos(x)).</li>
-                        <li>Натисніть кнопку "Генерувати".</li>
-                        <li>Зачекайте завершення процесу генерації.</li>
-                        <li>Натисніть кнопку відтворення, щоб послухати створену мелодію.</li>
-                        <li>Збережіть результат, якщо він вам подобається.</li>
-                        <li>Для зміни функції натисніть кнопку "Змінити".</li>
-                    </ol>
-                    <h2>Підтримувані функції</h2>
-                    <ul>
-                        <li>Тригонометричні: sin(x), cos(x), tan(x)</li>
-                        <li>Експоненціальні: exp(x), log(x)</li>
-                        <li>Поліноміальні: x^2, x^3, sqrt(x)</li>
-                        <li>Комбінації функцій з операторами +, -, *, /</li>
-                    </ul>
-                    <div class="note">
-                        <strong>Примітка:</strong> Для найкращих результатів рекомендується використовувати функції, значення яких знаходяться в межах від -10 до 10.
+            <div class="page" id="info-page" style="display: none;">
+                <div class="about-container">
+                    <div class="info-section">
+                        <div class="info-icon">🎵</div>
+                        <div>
+                            <h2>Про Graph to Music</h2>
+                            <p><strong>Graph to Music</strong> — інструмент, що дозволяє перетворювати математичні функції на музику та навпаки досліджувати музику у вигляді графічного представлення.</p>
+                        </div>
+                    </div>
+                    <hr class="info-divider" />
+                    <div class="info-section">
+                        <div class="info-icon">⚙️</div>
+                        <div>
+                            <h2>Як це працює</h2>
+                            <p>Алгоритм дискретизує функцію, нормалізує її значення і переводить їх у параметри звуку. Додатково застосовуються жанрові перетворення та темброві моделі інструментів.</p>
+                            <p>У зворотному режимі система аналізує аудіофайл, виділяє хвильову форму та будує наближений графік сигналу.</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Sign In Page -->
+            <div class="page" id="instructions-page" style="display: none;">
+                <div class="instructions-container">
+                    <h2>Інструкції з використання</h2>
+                    <ol>
+                        <li>Введіть математичну функцію у поле вводу.</li>
+                        <li>Оберіть жанр та інструмент.</li>
+                        <li>Налаштуйте інтервал, кількість точок і тривалість ноти.</li>
+                        <li>Натисніть «Генерувати» та прослухайте результат.</li>
+                        <li>Для зворотного режиму оберіть аудіофайл і натисніть «Побудувати графік з музики».</li>
+                    </ol>
+                    <div class="note"><strong>Примітка:</strong> модуль Music → Graph зараз є прототипом для дипломної роботи та підходить для демонстрації зворотного аналізу аудіосигналу.</div>
+                </div>
+            </div>
+
             <div class="page" id="signin-page" style="display: none;">
                 <div class="form-container">
                     <form class="auth-form" id="signin-form">
@@ -183,7 +312,6 @@
                 </div>
             </div>
 
-            <!-- Sign Up Page -->
             <div class="page" id="signup-page" style="display: none;">
                 <div class="form-container">
                     <form class="auth-form" id="signup-form">
@@ -198,12 +326,10 @@
                 </div>
             </div>
 
-            <!-- User Dashboard Page (visible only when logged in) -->
             <div class="page" id="dashboard-page" style="display: none;">
                 <div class="dashboard-container">
                     <h2>Мої збережені композиції</h2>
                     <div id="user-compositions" class="user-compositions">
-                        <!-- Compositions will be loaded here -->
                         <p class="no-compositions">У вас поки немає збережених композицій</p>
                     </div>
                 </div>
@@ -213,14 +339,19 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2025 Graph to Music. Всі права захищені.</p>
+            <p>&copy; 2026 Graph to Music. Всі права захищені.</p>
         </div>
     </footer>
 
-    <!-- Scripts -->
     <script src="app.js"></script>
     <script src="api.js"></script>
     <script src="visualization.js"></script>
+    <script src="genreEngine.js"></script>
+
+    <script src="instrumentEngine.js"></script>
+
+    <script src="musicToGraph.js"></script>
+    
     <script src="audioPlayer.js"></script>
     <script src="navigation.js"></script>
     <script src="audioEffects.js"></script>

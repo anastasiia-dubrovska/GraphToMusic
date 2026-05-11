@@ -1,10 +1,9 @@
-// audioPlayer.js - Updated section
+const NOTE_DURATION = 0.2;
+const DEFAULT_X_RANGE = [-10, 10];
+const DEFAULT_POINT_COUNT = 100;
+const SCALE_MIN = 220;
+const SCALE_MAX = 880;
 
-const NOTE_DURATION = 0.2; 
-const BASE_FREQUENCY = 440; 
-const SCALE_FACTOR = 100;
-const DEFAULT_X_RANGE = [-10, 10]; 
-const DEFAULT_POINT_COUNT = 100; 
 let audioContext = null;
 let isPlaying = false;
 let playbackPosition = 0;
@@ -12,14 +11,28 @@ let playbackStartTime = 0;
 let currentNote = 0;
 let playbackInterval = null;
 let audioData = null;
+let activeNodes = [];
+
 let currentSettings = {
     xRange: DEFAULT_X_RANGE,
     pointCount: DEFAULT_POINT_COUNT,
     noteDuration: NOTE_DURATION,
     useAmplitudeModulation: false,
-    useVibrato: false
+    useVibrato: false,
+    genre: 'original',
+    instrument: 'piano'
 };
 
+function ensureAudioContext() {
+    if (!audioContext || audioContext.state === 'closed') {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+function mapToFrequency(norm) {
+    return SCALE_MIN + norm * (SCALE_MAX - SCALE_MIN);
+}
 
 function generateAudioData(functionString, options = {}) {
     const {
@@ -27,456 +40,329 @@ function generateAudioData(functionString, options = {}) {
         pointCount = DEFAULT_POINT_COUNT,
         useAmplitudeModulation = false,
         useVibrato = false,
-        noteDuration = NOTE_DURATION
+        noteDuration = NOTE_DURATION,
+        genre = 'original',
+        instrument = 'piano'
     } = options;
 
-    currentSettings = {
-        xRange,
-        pointCount,
-        noteDuration,
-        useAmplitudeModulation,
-        useVibrato
-    };
+    currentSettings = { xRange, pointCount, noteDuration, useAmplitudeModulation, useVibrato, genre, instrument };
 
     const compiledFunction = window.visualization.createFunction(functionString);
-    if (typeof compiledFunction !== 'function') {
-        throw new Error("Помилка: створена функція недійсна. Перевір синтаксис виразу.");
-    }
-
     const [xMin, xMax] = xRange;
-
     const step = (xMax - xMin) / (pointCount - 1);
     const xValues = Array.from({ length: pointCount }, (_, i) => xMin + i * step);
 
-
     const yValues = xValues.map(x => {
-        try {
-            return compiledFunction(x);
-        } catch {
-            return NaN;
-        }
+        try { return compiledFunction(x); } catch { return NaN; }
     });
 
+    const validY = yValues.filter(y => Number.isFinite(y));
+    if (validY.length === 0) throw new Error('Функція не дає коректних значень на вибраному інтервалі');
 
-    const validY = yValues.filter(y => !isNaN(y));
     const yMin = Math.min(...validY);
     const yMax = Math.max(...validY);
+    const span = Math.max(1e-9, yMax - yMin);
 
-  
-    const normalizedValues = yValues.map(y => (isNaN(y) ? 0.5 : (y - yMin) / (yMax - yMin)));
+    const normalizedValues = yValues.map(y => Number.isFinite(y) ? (y - yMin) / span : 0.5);
 
-
-    const SCALE_MIN = 220; 
-    const SCALE_MAX = 880; 
-    const mapToFrequency = norm => SCALE_MIN + norm * (SCALE_MAX - SCALE_MIN);
-
-    const notes = normalizedValues.map(norm => ({
+    let notes = normalizedValues.map((norm, index) => ({
         frequency: mapToFrequency(norm),
-        duration: noteDuration 
+        duration: noteDuration,
+        amplitude: 0.5,
+        index
     }));
 
-    // Vi = g(|f'(x)|)
     if (useAmplitudeModulation) {
         const h = 0.001;
-        const derivative = xValues.map((x, i) => {
-            const xp = x + h, xm = x - h;
+        const derivative = xValues.map(x => {
             try {
-                return Math.abs((compiledFunction(xp) - compiledFunction(xm)) / (2 * h));
+                return Math.abs((compiledFunction(x + h) - compiledFunction(x - h)) / (2 * h));
             } catch {
                 return 0;
             }
         });
+        const maxD = Math.max(...derivative, 1e-9);
         derivative.forEach((d, i) => {
-            notes[i].amplitude = Math.min(1, d / 10);
+            notes[i].amplitude = 0.2 + 0.8 * (d / maxD);
         });
-    } else {
-        notes.forEach(n => n.amplitude = 0.5);
     }
-
 
     if (useVibrato) {
         const h = 0.001;
-        const secondDerivative = xValues.map((x, i) => {
-            const xp = x + h, x0 = x, xm = x - h;
+        const secondDerivative = xValues.map(x => {
             try {
-                return (compiledFunction(xp) - 2 * compiledFunction(x0) + compiledFunction(xm)) / (h * h);
+                return (compiledFunction(x + h) - 2 * compiledFunction(x) + compiledFunction(x - h)) / (h * h);
             } catch {
                 return 0;
             }
         });
+        const maxS = Math.max(...secondDerivative.map(v => Math.abs(v)), 1e-9);
         secondDerivative.forEach((s, i) => {
-            notes[i].vibratoDepth = Math.abs(s) / 20;
-            notes[i].vibratoRate = 5 + Math.abs(s) / 5;
+            const normalized = Math.abs(s) / maxS;
+            notes[i].vibratoDepth = normalized * 8;
+            notes[i].vibratoRate = 4 + normalized * 5;
         });
     }
 
+    if (window.genreEngine?.applyGenreToNotes) {
+        notes = window.genreEngine.applyGenreToNotes(notes, genre);
+    }
+
+    notes = notes.map(note => ({ ...note, instrument }));
 
     return {
         notes,
         tempo: 120,
         xValues,
+        yValues,
         originalValues: yValues,
-        normalizedValues
+        normalizedValues,
+        sourceFunction: functionString,
+        genre,
+        instrument
     };
 }
 
+function createInstrumentChain(ctx, preset, frequency, startTime, duration, amplitude) {
+    const masterGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = preset.brightness || 1800;
+    filter.Q.value = 1;
 
-function computeDerivative(functionString, xValues) {
-    const compiledFunction = window.visualization.createFunction(functionString);
-    const h = 0.001;
-    return xValues.map((x, i) => {
-        if (i === 0 || i === xValues.length - 1) return 0; 
-        const y1 = compiledFunction(x + h);
-        const y2 = compiledFunction(x - h);
-        return (y1 - y2) / (2 * h);
+    masterGain.gain.setValueAtTime(0.0001, startTime);
+    masterGain.gain.linearRampToValueAtTime(amplitude, startTime + (preset.attack || 0.02));
+    masterGain.gain.linearRampToValueAtTime(0.0001, startTime + duration + (preset.release || 0.12));
+
+    filter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    const oscillators = (preset.waveforms || ['sine']).map((waveform, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = waveform;
+        osc.frequency.value = idx === 0 ? frequency : frequency * 2;
+        osc.detune.value = idx === 0 ? 0 : (preset.detune || 0);
+        gain.gain.value = idx === 0 ? 0.75 : 0.18;
+        osc.connect(gain);
+        gain.connect(filter);
+        osc.start(startTime);
+        osc.stop(startTime + duration + (preset.release || 0.12));
+        activeNodes.push(osc, gain);
+        return osc;
     });
+
+    activeNodes.push(masterGain, filter);
+    return { oscillators, filter, masterGain };
 }
 
-function computeSecondDerivative(functionString, xValues) {
-    const compiledFunction = window.visualization.createFunction(functionString);
-    const h = 0.001; 
-    return xValues.map((x, i) => {
-        if (i === 0 || i === xValues.length - 1 || i === 1 || i === xValues.length - 2) return 0; 
-        const y1 = compiledFunction(x + h);
-        const y2 = compiledFunction(x);
-        const y3 = compiledFunction(x - h);
-        return (y1 - 2 * y2 + y3) / (h * h);
-    });
+function playNote(note, startTime = ensureAudioContext().currentTime) {
+    const ctx = ensureAudioContext();
+    const preset = window.genreEngine?.INSTRUMENT_PRESETS?.[note.instrument || currentSettings.instrument] || window.genreEngine?.INSTRUMENT_PRESETS?.piano || { waveforms: ['sine'], attack: 0.02, release: 0.12, brightness: 2000 };
+    const amplitude = note.amplitude ?? 0.5;
+    const duration = note.duration ?? currentSettings.noteDuration;
+
+    const chain = createInstrumentChain(ctx, preset, note.frequency, startTime, duration, amplitude);
+
+    if (note.vibratoDepth && note.vibratoRate) {
+        const vibratoOsc = ctx.createOscillator();
+        const vibratoGain = ctx.createGain();
+        vibratoOsc.type = 'sine';
+        vibratoOsc.frequency.value = note.vibratoRate;
+        vibratoGain.gain.value = note.vibratoDepth;
+        vibratoOsc.connect(vibratoGain);
+        chain.oscillators.forEach(osc => vibratoGain.connect(osc.frequency));
+        vibratoOsc.start(startTime);
+        vibratoOsc.stop(startTime + duration);
+        activeNodes.push(vibratoOsc, vibratoGain);
+    }
 }
 
-
-function playNote(frequency, duration, startTime = audioContext.currentTime, amplitude = 0.5, vibrato = null) {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    const oscillator = audioContext.createOscillator();
-    oscillator.type = 'sine';
-    oscillator.frequency.value = frequency;
-
-    const gainNode = audioContext.createGain();
-    gainNode.gain.value = amplitude;
-
-
-    gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.linearRampToValueAtTime(amplitude, startTime + 0.01);
-    gainNode.gain.linearRampToValueAtTime(0, startTime + duration - 0.01);
-
-
-    if (vibrato && vibrato.vibratoDepth && vibrato.vibratoRate) {
-        const vibratoOscillator = audioContext.createOscillator();
-        vibratoOscillator.type = 'sine';
-        vibratoOscillator.frequency.value = vibrato.vibratoRate;
-
-        const vibratoGain = audioContext.createGain();
-        vibratoGain.gain.value = vibrato.vibratoDepth;
-
-        vibratoOscillator.connect(vibratoGain);
-        vibratoGain.connect(oscillator.frequency);
-        vibratoOscillator.start(startTime);
-        vibratoOscillator.stop(startTime + duration);
-    }
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.start(startTime);
-    oscillator.stop(startTime + duration);
-
-    return oscillator;
+function clearActiveNodes() {
+    activeNodes.forEach(node => {
+        try {
+            if (typeof node.stop === 'function') node.stop();
+        } catch {}
+        try {
+            node.disconnect?.();
+        } catch {}
+    });
+    activeNodes = [];
 }
 
 function playMusic() {
-    if (!audioData || !audioData.notes || audioData.notes.length === 0) {
-        console.error('No audio data to play');
-        return;
-    }
+    if (!audioData?.notes?.length) return;
 
-    if (isPlaying) {
-        stopMusic();
-    }
-
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
+    if (isPlaying) stopMusic();
+    const ctx = ensureAudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
 
     isPlaying = true;
-    document.querySelector('.music-player').classList.add('playing');
-    document.querySelector('.music-player span').textContent = 'Зараз грає...';
+    const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+    if (playerLabel) playerLabel.textContent = 'Зараз грає...';
+    document.querySelector('.music-player')?.classList.add('playing');
 
-    let startTime = audioContext.currentTime;
-    let elapsed = 0;
-    let noteDuration = currentSettings.noteDuration || NOTE_DURATION;
-
+    let startTime = ctx.currentTime;
     if (playbackPosition > 0) {
-        currentNote = Math.floor(playbackPosition / noteDuration);
-        elapsed = playbackPosition - (currentNote * noteDuration);
-        startTime -= elapsed;
+        currentNote = Math.floor(playbackPosition / currentSettings.noteDuration);
+        startTime -= playbackPosition - currentNote * currentSettings.noteDuration;
     }
 
-    playbackStartTime = audioContext.currentTime - playbackPosition;
+    playbackStartTime = ctx.currentTime - playbackPosition;
 
+    let timeCursor = startTime;
     for (let i = currentNote; i < audioData.notes.length; i++) {
         const note = audioData.notes[i];
-        const noteTime = startTime + (i - currentNote) * noteDuration + elapsed;
-        playNote(note.frequency, noteDuration, noteTime, note.amplitude, note.vibratoDepth ? { vibratoDepth: note.vibratoDepth, vibratoRate: note.vibratoRate } : null);
+        playNote(note, timeCursor);
+        timeCursor += note.duration ?? currentSettings.noteDuration;
     }
 
+    clearInterval(playbackInterval);
     playbackInterval = setInterval(updatePlaybackProgress, 100);
 
     setTimeout(() => {
-        if (isPlaying) {
-            stopMusic();
-        }
-    }, (audioData.notes.length - currentNote) * noteDuration * 1000);
+        if (isPlaying) stopMusic();
+    }, Math.max(0, (timeCursor - ctx.currentTime)) * 1000 + 150);
 }
 
 function updatePlaybackProgress() {
-    if (!isPlaying || !audioData || !audioData.notes) return;
+    if (!isPlaying || !audioData?.notes?.length || !audioContext) return;
 
     const currentTime = audioContext.currentTime - playbackStartTime;
-    const totalTime = audioData.notes.length * currentSettings.noteDuration;
+    const totalTime = audioData.notes.reduce((sum, note) => sum + (note.duration ?? currentSettings.noteDuration), 0);
+    const progressPercent = Math.min(100, (currentTime / totalTime) * 100);
 
-    const progressPercent = (currentTime / totalTime) * 100;
-    document.querySelector('.progress-bar').style.width = `${progressPercent}%`;
+    const bar = document.querySelector('.progress-bar');
+    if (bar) bar.style.width = `${progressPercent}%`;
 
+    const currentEl = document.getElementById('currentTime');
+    const totalEl = document.getElementById('totalTime');
+    if (currentEl) currentEl.textContent = formatTime(currentTime);
+    if (totalEl) totalEl.textContent = formatTime(totalTime);
 
-    document.getElementById('currentTime').textContent = formatTime(currentTime);
-    document.getElementById('totalTime').textContent = formatTime(totalTime);
+    window.visualization?.updateGraphCursor?.(currentTime, currentSettings.noteDuration, audioData.notes.length,
+        parseFloat(document.getElementById('xMin')?.value ?? currentSettings.xRange[0]),
+        parseFloat(document.getElementById('xMax')?.value ?? currentSettings.xRange[1]));
 
-
-    updateGraphCursor(
-        currentTime,
-        currentSettings.noteDuration,
-        audioData.notes.length,
-        parseFloat(document.getElementById('xMin').value),
-        parseFloat(document.getElementById('xMax').value)
-    );
-
-    if (currentTime >= totalTime) {
-        stopMusic();
-    }
+    if (currentTime >= totalTime) stopMusic();
 }
 
 function pauseMusic() {
     if (!isPlaying || !audioContext) return;
-    
     audioContext.suspend();
     isPlaying = false;
     playbackPosition = audioContext.currentTime - playbackStartTime;
-
     clearInterval(playbackInterval);
-    document.querySelector('.music-player').classList.remove('playing');
-    document.querySelector('.music-player span').textContent = 'Пауза';
+    document.querySelector('.music-player')?.classList.remove('playing');
+    const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+    if (playerLabel) playerLabel.textContent = 'Пауза';
 }
 
 function stopMusic() {
-    if (!isPlaying || !audioContext) return;
-
     clearInterval(playbackInterval);
     playbackPosition = 0;
     currentNote = 0;
     isPlaying = false;
+    clearActiveNodes();
 
-    if (audioContext.state !== 'closed') {
-
-        audioContext.close().then(() => {
-            audioContext = null;
-        });
+    if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().then(() => { audioContext = null; });
     }
 
-    document.querySelector('.music-player').classList.remove('playing');
-    document.querySelector('.music-player span').textContent = 'Зупинено';
+    document.querySelector('.music-player')?.classList.remove('playing');
+    const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+    if (playerLabel) playerLabel.textContent = 'Натисніть, щоб послухати результат';
+
+    const bar = document.querySelector('.progress-bar');
+    if (bar) bar.style.width = '0%';
 }
-function saveAudioFromCurrentData() {
-    if (!audioData) {
-        alert("Немає аудіо для збереження.");
-        return;
-    }
 
-    const sampleRate = 44100;
-    const wavBlob = encodeWAV(audioData.notes, sampleRate);
-    const url = URL.createObjectURL(wavBlob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'composition.wav';
-    a.click();
-
-    URL.revokeObjectURL(url);
-}
 function formatTime(seconds) {
-    const min = Math.floor(seconds / 60);
-    const sec = Math.floor(seconds % 60);
-    return `${min}:${sec < 10 ? '0' : ''}${sec}`;
+    const safe = Math.max(0, Math.floor(seconds || 0));
+    const minutes = Math.floor(safe / 60);
+    const secs = safe % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
-
 
 function saveComposition() {
-    if (!audioData || !audioData.notes) {
+    if (!audioData?.notes?.length) {
         alert('Немає даних для збереження.');
         return;
     }
-
     const blob = new Blob([JSON.stringify(audioData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
     const a = document.createElement('a');
     a.href = url;
     a.download = 'composition.json';
     a.click();
-
     URL.revokeObjectURL(url);
 }
 
-
 function processAudioFromFunction(functionData, options = {}) {
-    if (!functionData || !functionData.functionString) {
-        throw new Error('Invalid function data');
-    }
+    if (!functionData?.functionString) throw new Error('Invalid function data');
 
     const mergedOptions = {
         xRange: options.xRange || currentSettings.xRange || DEFAULT_X_RANGE,
         pointCount: options.pointCount || currentSettings.pointCount || DEFAULT_POINT_COUNT,
         noteDuration: options.noteDuration || currentSettings.noteDuration || NOTE_DURATION,
-        useAmplitudeModulation: options.useAmplitudeModulation !== undefined ? 
-                                options.useAmplitudeModulation : 
-                                currentSettings.useAmplitudeModulation,
-        useVibrato: options.useVibrato !== undefined ? 
-                     options.useVibrato : 
-                     currentSettings.useVibrato
+        useAmplitudeModulation: options.useAmplitudeModulation ?? currentSettings.useAmplitudeModulation,
+        useVibrato: options.useVibrato ?? currentSettings.useVibrato,
+        genre: options.genre || currentSettings.genre || 'original',
+        instrument: options.instrument || currentSettings.instrument || 'piano'
     };
 
     audioData = generateAudioData(functionData.functionString, mergedOptions);
 
-    document.querySelector('.result-container').style.display = 'block';
-    document.querySelector('.music-player span').textContent = 'Натисніть, щоб послухати результат';
-    
-    if (window.visualization && window.visualization.drawFunctionGraph) {
-        window.visualization.drawFunctionGraph(functionData.functionString, mergedOptions.xRange);
-    }
+    document.querySelector('.result-container')?.style && (document.querySelector('.result-container').style.display = 'block');
+    const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+    if (playerLabel) playerLabel.textContent = 'Натисніть, щоб послухати результат';
 
+    window.visualization?.drawFunctionGraph?.(functionData.functionString, mergedOptions.xRange, audioData);
     return audioData;
 }
 
 function initAudioPlayer() {
-    console.log("🎧 Ініціалізація аудіоплеєра...");
-
     const pointCountInput = document.getElementById('pointCount');
     const pointCountValue = document.getElementById('pointCountValue');
-    if (pointCountInput && pointCountValue) {
-        pointCountInput.addEventListener('input', () => {
-            pointCountValue.textContent = pointCountInput.value;
-        });
-    }
-    
+    pointCountInput?.addEventListener('input', () => { if (pointCountValue) pointCountValue.textContent = pointCountInput.value; });
+
     const noteDurationInput = document.getElementById('noteDuration');
     const noteDurationValue = document.getElementById('noteDurationValue');
-    if (noteDurationInput && noteDurationValue) {
-        noteDurationInput.addEventListener('input', () => {
-            noteDurationValue.textContent = `${noteDurationInput.value}s`;
-        });
-    }
-    
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) {
-        console.error('Web Audio API не підтримується в цьому браузері', e);
-    }
+    noteDurationInput?.addEventListener('input', () => { if (noteDurationValue) noteDurationValue.textContent = `${noteDurationInput.value}s`; });
+
+    document.querySelector('.music-player')?.addEventListener('click', () => {
+        if (!audioData?.notes?.length) return;
+        if (isPlaying) pauseMusic(); else playMusic();
+    });
+
+    ensureAudioContext();
 }
 
 function applySettings() {
-    const xMin = parseFloat(document.getElementById('xMin').value);
-    const xMax = parseFloat(document.getElementById('xMax').value);
-    const pointCount = parseInt(document.getElementById('pointCount').value);
-    const noteDuration = parseFloat(document.getElementById('noteDuration').value);
-    const useAmplitudeModulation = document.getElementById('amplitudeModulation').checked;
-    const useVibrato = document.getElementById('vibratoEffect').checked;
+    const xMin = parseFloat(document.getElementById('xMin')?.value);
+    const xMax = parseFloat(document.getElementById('xMax')?.value);
+    const pointCount = parseInt(document.getElementById('pointCount')?.value, 10);
+    const noteDuration = parseFloat(document.getElementById('noteDuration')?.value);
+    const useAmplitudeModulation = document.getElementById('amplitudeModulation')?.checked ?? false;
+    const useVibrato = document.getElementById('vibratoEffect')?.checked ?? false;
+    const genre = document.getElementById('genreSelect')?.value || 'original';
+    const instrument = document.getElementById('instrumentSelect')?.value || 'piano';
 
-    if (isNaN(xMin) || isNaN(xMax) || isNaN(pointCount) || isNaN(noteDuration)) {
-        alert('Будь ласка, введіть коректні числові значення для всіх полів');
-        return;
-    }
-    
-    if (xMin >= xMax) {
-        alert('Мінімальне значення X має бути менше за максимальне');
-        return;
-    }
+    if ([xMin, xMax, pointCount, noteDuration].some(Number.isNaN)) return alert('Будь ласка, введіть коректні числові значення.');
+    if (xMin >= xMax) return alert('Мінімальне значення X має бути менше за максимальне');
 
-    if (pointCount < 10 || pointCount > 500) {
-        alert('Кількість точок має бути від 10 до 500');
-        return;
-    }
+    const funcStr = document.querySelector('.function-input')?.value;
+    if (!funcStr) return alert('Будь ласка, введіть математичну функцію');
 
-    if (noteDuration < 0.05 || noteDuration > 1) {
-        alert('Тривалість ноти має бути від 0.05 до 1 секунди');
-        return;
-    }
-
-    const options = {
+    processAudioFromFunction({ functionString: funcStr }, {
         xRange: [xMin, xMax],
         pointCount,
         noteDuration,
         useAmplitudeModulation,
-        useVibrato
-    };
-
-    currentSettings = options;
-
-    const funcStr = document.querySelector('#functionInput')?.value || 
-                    document.querySelector('.function-input')?.value;
-    
-    if (!funcStr) {
-        alert('Будь ласка, введіть математичну функцію');
-        return;
-    }
-
-    try {
-        processAudioFromFunction({ functionString: funcStr }, options);
-        console.log('🎼 Аудіо згенеровано з новими налаштуваннями', options);
-    } catch (error) {
-        alert('Помилка генерації: ' + error.message);
-    }
-}
-function encodeWAV(samples, sampleRate) {
-  const buffer = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(buffer);
-
-  function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  }
-
-  function floatTo16BitPCM(output, offset, input) {
-    for (let i = 0; i < input.length; i++, offset += 2) {
-      let s = Math.max(-1, Math.min(1, input[i]));
-      s = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      output.setInt16(offset, s, true);
-    }
-  }
-
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + samples.length * 2, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, samples.length * 2, true);
-
-  floatTo16BitPCM(view, 44, samples);
-
-  return new Blob([view], { type: 'audio/wav' });
+        useVibrato,
+        genre,
+        instrument
+    });
 }
 
 window.audioPlayer = {
@@ -486,9 +372,10 @@ window.audioPlayer = {
     pauseMusic,
     stopMusic,
     saveComposition,
-    generateAudioData, 
-    applySettings, 
+    generateAudioData,
+    applySettings,
     updatePlaybackProgress,
-    saveAudioFromCurrentData,
-    encodeWAV
+    getCurrentAudioData: () => audioData
 };
+
+window.applySettings = applySettings;

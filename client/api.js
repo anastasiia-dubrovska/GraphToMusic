@@ -46,7 +46,6 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
 
-
     if (typeof updateUIForLoggedOutUser === 'function') {
         updateUIForLoggedOutUser();
     }
@@ -89,7 +88,6 @@ async function checkAuthStatus() {
         }
     } catch (error) {
         console.error('Auth check error:', error);
-
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         if (typeof updateUIForLoggedOutUser === 'function') {
@@ -98,86 +96,6 @@ async function checkAuthStatus() {
         return false;
     }
 }
-async function saveComposition(title, func, token) {
-  const response = await fetch('http://localhost:3000/api/music/save', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + token
-    },
-    body: JSON.stringify({ title, function: func })
-  });
-
-  const data = await response.json();
-  if (data.success) {
-    alert('Композиція збережена!');
-  } else {
-    alert('Помилка при збереженні: ' + data.message);
-  }
-}
-async function saveAudioToServer(title = 'My Composition') {
-    if (!audioData) {
-        alert("Немає аудіо для збереження.");
-        return;
-    }
-
-    const sampleRate = 44100;
-    const wavBlob = encodeWAV(audioData.notes, sampleRate);
-
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('audio', wavBlob, 'composition.wav');
-
-    try {
-        const token = localStorage.getItem('token');
-
-        const response = await fetch('http://localhost:3000/api/music/save-audio', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-            },
-            body: formData,
-        });
-
-        const result = await response.json();
-        if (result.success) {
-            alert('Композиція успішно збережена на сервері!');
-        } else {
-            alert('Помилка збереження: ' + result.message);
-        }
-    } catch (error) {
-        alert('Помилка мережі: ' + error.message);
-    }
-}
-
-async function fetchUserCompositions(token) {
-  const response = await fetch('http://localhost:3000/api/music/user', {
-    headers: {
-      'Authorization': 'Bearer ' + token
-    }
-  });
-  const data = await response.json();
-  if (data.success) {
-    return data.compositions; 
-  } else {
-    alert('Помилка при завантаженні: ' + data.message);
-    return [];
-  }
-}
-async function deleteComposition(id) {
-  const token = getUserToken(); 
-  const response = await fetch(`http://localhost:3000/api/music/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': 'Bearer ' + token
-    }
-  });
-  const data = await response.json();
-  if (!data.success) {
-    alert('Помилка при видаленні: ' + data.message);
-  }
-}
-
 
 async function saveCompositionToServer(compositionData) {
     const token = localStorage.getItem('token');
@@ -270,45 +188,6 @@ async function deleteComposition(compositionId) {
         return { success: false, message: 'Помилка зєднання з сервером' };
     }
 }
-function renderCompositions(compositions) {
-  const container = document.getElementById('saved-compositions');
-  container.innerHTML = '';
-
-  if (compositions.length === 0) {
-    container.innerHTML = '<p>Немає збережених композицій.</p>';
-    return;
-  }
-
-  compositions.forEach(comp => {
-    const div = document.createElement('div');
-    div.classList.add('composition-item');
-    div.innerHTML = `
-      <h3>${comp.title}</h3>
-      <p>Функція: ${comp.function}</p>
-      <p>Дата створення: ${new Date(comp.created_at).toLocaleString()}</p>
-      <button class="play-btn" data-func="${comp.function}">Прослухати</button>
-      <button class="delete-btn" data-id="${comp.id}">Видалити</button>
-    `;
-    container.appendChild(div);
-  });
-
-  container.querySelectorAll('.play-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const func = btn.getAttribute('data-func');
-      playFunctionAsAudio(func);
-    });
-  });
-
-  container.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      if (confirm('Видалити цю композицію?')) {
-        await deleteComposition(id);
-        btn.parentElement.remove(); 
-      }
-    });
-  });
-}
 
 function renderUserCompositions(compositions) {
     const container = document.querySelector('.user-compositions');
@@ -364,6 +243,7 @@ function renderUserCompositions(compositions) {
         });
     });
 }
+
 
 async function generateMusic(functionExpression, options = {}) {
     const loading = document.querySelector('.loading');

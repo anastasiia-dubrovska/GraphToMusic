@@ -1,83 +1,53 @@
-/**
- * audioEffects.js
- * 
- * Модуль, що забезпечує додаткові аудіо-ефекти для музики, згенерованої з математичних функцій.
- * Розширює базовий audioPlayer, додаючи ефекти відлуння, гармонізації, арпеджіатора,
- * зміни тону, LFO фільтра та інтерфейс для управління цими ефектами.
- * 
- * Структура:
- * 1. Константи та налаштування ефектів
- * 2. Основні функції відтворення із застосуванням ефектів
- * 3. Функції для кожного окремого ефекту (відлуння, гармонізація, арпеджіатор та ін.)
- * 4. Користувацький інтерфейс для ефектів
- * 5. Стилі для інтерфейсу
- * 6. Ініціалізація та експорт
- */
 
-// Константи для аудіо-ефектів
-const ECHO_TIME = 0.3; // Час затримки (delay) у секундах
-const ECHO_FEEDBACK = 0.4; // Коефіцієнт зворотного зв'язку (feedback)
-const HARMONY_INTERVALS = [4, 7]; // Інтервали для гармонізації (терція і квінта)
-const ARPEGGIO_SPEED = 0.1; // Швидкість арпеджіо у секундах на ноту
-const LFO_RATE = 0.5; // Швидкість низькочастотного осцилятора (LFO)
-const LFO_DEPTH = 300; // Глибина LFO
+const ECHO_TIME = 0.3;
+const ECHO_FEEDBACK = 0.4; 
+const HARMONY_INTERVALS = [4, 7];
+const ARPEGGIO_SPEED = 0.1;
+const LFO_RATE = 0.5; 
+const LFO_DEPTH = 300; 
 
-// Розширений об'єкт налаштувань
 const effectSettings = {
     useEcho: false,
     echoTime: ECHO_TIME,
     echoFeedback: ECHO_FEEDBACK,
     useArpeggiator: false,
     arpeggioSpeed: ARPEGGIO_SPEED,
-    arpeggioPattern: 'up', // 'up', 'down', 'updown', 'random'
+    arpeggioPattern: 'up',
     useHarmony: false,
     harmonyIntervals: HARMONY_INTERVALS,
     usePitchShift: false,
-    pitchShiftAmount: 0, // півтони зсуву (-12 до +12)
+    pitchShiftAmount: 0, 
     useLFO: false,
     lfoRate: LFO_RATE,
     lfoDepth: LFO_DEPTH
 };
 
-/**
- * Функція для відтворення окремої ноти з підтримкою ефектів
- * @param {number} frequency - Частота ноти в герцах
- * @param {number} duration - Тривалість ноти в секундах
- * @param {number} startTime - Час початку відтворення в контексті аудіо
- * @param {number} amplitude - Гучність ноти (0-1)
- * @param {Object} options - Додаткові опції для ноти
- * @returns {OscillatorNode} - Створений осцилятор для подальших маніпуляцій
- */
+
 function playNote(frequency, duration, startTime = audioContext.currentTime, amplitude = 0.5, options = {}) {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
     
-    // Застосовуємо зсув висоти тону, якщо він активований
     if (effectSettings.usePitchShift) {
         frequency = frequency * Math.pow(2, effectSettings.pitchShiftAmount / 12);
     }
     
-    // Створюємо основний осцилятор
+
     const oscillator = audioContext.createOscillator();
     oscillator.type = options.waveform || 'sine';
     oscillator.frequency.value = frequency;
     
-    // Застосовуємо LFO фільтр, якщо він активований
     if (effectSettings.useLFO) {
         applyLFO(oscillator, startTime, duration);
     }
     
-    // Налаштовуємо гучність
     const gainNode = audioContext.createGain();
     gainNode.gain.value = amplitude;
     
-    // Створюємо огинаючу для плавного звучання
     gainNode.gain.setValueAtTime(0, startTime);
     gainNode.gain.linearRampToValueAtTime(amplitude, startTime + 0.01);
     gainNode.gain.linearRampToValueAtTime(0, startTime + duration - 0.01);
     
-    // Застосовуємо вібрато, якщо він заданий
     if (options.vibrato && options.vibrato.vibratoDepth && options.vibrato.vibratoRate) {
         const vibratoOscillator = audioContext.createOscillator();
         vibratoOscillator.type = 'sine';
@@ -94,7 +64,6 @@ function playNote(frequency, duration, startTime = audioContext.currentTime, amp
     
     oscillator.connect(gainNode);
     
-    // Застосовуємо ефект відлуння, якщо він активований
     if (effectSettings.useEcho) {
         const outputNode = applyEcho(gainNode, startTime, duration);
         outputNode.connect(audioContext.destination);
@@ -108,13 +77,7 @@ function playNote(frequency, duration, startTime = audioContext.currentTime, amp
     return oscillator;
 }
 
-/**
- * Функція для застосування ефекту відлуння
- * @param {AudioNode} sourceNode - Джерело звуку
- * @param {number} startTime - Час початку
- * @param {number} duration - Тривалість
- * @returns {AudioNode} - Вихідний вузол для подальшого підключення
- */
+
 function applyEcho(sourceNode, startTime, duration) {
     const delayNode = audioContext.createDelay();
     delayNode.delayTime.value = effectSettings.echoTime;
@@ -123,15 +86,14 @@ function applyEcho(sourceNode, startTime, duration) {
     feedbackGain.gain.value = effectSettings.echoFeedback;
     
     const outputGain = audioContext.createGain();
-    
-    // З'єднуємо вузли
-    sourceNode.connect(outputGain); // Оригінальний сигнал
+
+    sourceNode.connect(outputGain); 
     sourceNode.connect(delayNode);
     delayNode.connect(feedbackGain);
-    feedbackGain.connect(delayNode); // Зворотній зв'язок для кількох повторень
-    feedbackGain.connect(outputGain); // Додаємо затриманий сигнал до виходу
+    feedbackGain.connect(delayNode);
+    feedbackGain.connect(outputGain); 
     
-    // Зупиняємо ефект відлуння після закінчення (з додатковим часом для загасання)
+    
     const stopTime = startTime + duration + (effectSettings.echoTime * 5);
     setTimeout(() => {
         feedbackGain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
@@ -140,13 +102,7 @@ function applyEcho(sourceNode, startTime, duration) {
     return outputGain;
 }
 
-/**
- * Функція для застосування LFO фільтра
- * @param {OscillatorNode} oscillator - Осцилятор для модуляції
- * @param {number} startTime - Час початку
- * @param {number} duration - Тривалість
- * @returns {AudioNode} - Фільтр для подальшого підключення
- */
+
 function applyLFO(oscillator, startTime, duration) {
     const lfo = audioContext.createOscillator();
     lfo.type = 'sine';
@@ -157,17 +113,15 @@ function applyLFO(oscillator, startTime, duration) {
     
     lfo.connect(lfoGain);
     
-    // Створюємо фільтр
+
     const filter = audioContext.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 5000; // Базова частота фільтра
+    filter.frequency.value = 5000;
     
-    // З'єднуємо LFO з частотою фільтра
     lfoGain.connect(filter.frequency);
     
-    // Ставимо фільтр між осцилятором і виходом
     oscillator.connect(filter);
-    oscillator.disconnect(); // Від'єднуємо прямий вихід
+    oscillator.disconnect();
     
     lfo.start(startTime);
     lfo.stop(startTime + duration);
@@ -175,12 +129,6 @@ function applyLFO(oscillator, startTime, duration) {
     return filter;
 }
 
-/**
- * Функція для гри з гармонізацією
- * @param {Array} notes - Масив нот для відтворення
- * @param {number} startTime - Час початку відтворення
- * @param {Object} options - Додаткові параметри
- */
 function playWithHarmony(notes, startTime = audioContext.currentTime, options = {}) {
     if (!notes || notes.length === 0) return;
     
@@ -189,15 +137,10 @@ function playWithHarmony(notes, startTime = audioContext.currentTime, options = 
     notes.forEach((note, index) => {
         const noteTime = startTime + index * noteDuration;
         
-        // Граємо основну ноту
         playNote(note.frequency, noteDuration, noteTime, note.amplitude, note);
         
-        // Додаємо гармонійні ноти, якщо ввімкнено гармонізацію
         if (effectSettings.useHarmony) {
             effectSettings.harmonyIntervals.forEach(interval => {
-                // Для простої гармонізації використовуємо множник частоти
-                // Для терції (4 півтони): 2^(4/12) ≈ 1.2599
-                // Для квінти (7 півтонів): 2^(7/12) ≈ 1.4983
                 const harmonicFreq = note.frequency * Math.pow(2, interval / 12);
                 playNote(harmonicFreq, noteDuration, noteTime, note.amplitude * 0.6, note);
             });
@@ -205,27 +148,18 @@ function playWithHarmony(notes, startTime = audioContext.currentTime, options = 
     });
 }
 
-/**
- * Функція для гри з арпеджіатором
- * @param {Array} notes - Масив нот для відтворення
- * @param {number} startTime - Час початку відтворення
- * @param {Object} options - Додаткові параметри
- */
 function playWithArpeggiator(notes, startTime = audioContext.currentTime, options = {}) {
     if (!notes || notes.length === 0) return;
     
     const noteDuration = currentSettings.noteDuration || NOTE_DURATION;
-    const chordSize = 3; // Розмір акорду для арпеджіо
+    const chordSize = 3;
     
-    // Групуємо ноти в акорди
     for (let i = 0; i < notes.length; i += chordSize) {
         const chord = notes.slice(i, i + chordSize);
         
-        // Якщо арпеджіатор увімкнений, граємо ноти акорду послідовно
         if (effectSettings.useArpeggiator && chord.length > 1) {
             let arpNotes = [...chord];
             
-            // Застосовуємо різні патерни арпеджіо
             switch (effectSettings.arpeggioPattern) {
                 case 'down':
                     arpNotes.reverse();
@@ -236,16 +170,14 @@ function playWithArpeggiator(notes, startTime = audioContext.currentTime, option
                 case 'random':
                     arpNotes.sort(() => Math.random() - 0.5);
                     break;
-                // За замовчуванням 'up' - не змінюємо порядок
             }
             
-            // Граємо кожну ноту арпеджіо
+
             arpNotes.forEach((note, arpIndex) => {
                 const arpTime = startTime + (i * noteDuration) + (arpIndex * effectSettings.arpeggioSpeed);
                 playNote(note.frequency, effectSettings.arpeggioSpeed * 0.9, arpTime, note.amplitude, note);
             });
         } else {
-            // Інакше граємо ноти як зазвичай
             chord.forEach((note, index) => {
                 playNote(note.frequency, noteDuration, startTime + (i * noteDuration), note.amplitude, note);
             });
@@ -253,9 +185,6 @@ function playWithArpeggiator(notes, startTime = audioContext.currentTime, option
     }
 }
 
-/**
- * Оновлена функція для відтворення музики з новими ефектами
- */
 function playMusicWithEffects() {
     if (!audioData || !audioData.notes || audioData.notes.length === 0) {
         console.error('Немає аудіоданих для відтворення');
@@ -290,7 +219,6 @@ function playMusicWithEffects() {
     
     playbackStartTime = audioContext.currentTime - playbackPosition;
     
-    // Вибираємо метод відтворення залежно від активованих ефектів
     const notesToPlay = audioData.notes.slice(currentNote);
     
     if (effectSettings.useHarmony) {
@@ -298,7 +226,6 @@ function playMusicWithEffects() {
     } else if (effectSettings.useArpeggiator) {
         playWithArpeggiator(notesToPlay, startTime + elapsed);
     } else {
-        // Стандартне відтворення з оновленими ефектами
         for (let i = 0; i < notesToPlay.length; i++) {
             const note = notesToPlay[i];
             const noteTime = startTime + (i * noteDuration) + elapsed;
@@ -316,20 +243,16 @@ function playMusicWithEffects() {
         if (isPlaying) {
             stopMusic();
         }
-    }, (notesToPlay.length * noteDuration * 1000) + 1000); // Додатковий час для ефектів
+    }, (notesToPlay.length * noteDuration * 1000) + 1000); 
 }
 
-/**
- * Функція для оновлення звучання з новими налаштуваннями ефектів
- * @param {Object} newEffects - Нові налаштування ефектів
- */
+
 function updateEffects(newEffects) {
-    // Оновлюємо налаштування ефектів
+
     Object.assign(effectSettings, newEffects);
     
     console.log('🎛️ Ефекти оновлено:', effectSettings);
     
-    // Якщо музика вже відтворюється, перезапускаємо її з новими ефектами
     if (isPlaying) {
         const currentPosition = audioContext.currentTime - playbackStartTime;
         stopMusic();
@@ -338,9 +261,7 @@ function updateEffects(newEffects) {
     }
 }
 
-/**
- * Функція для ініціалізації інтерфейсу ефектів
- */
+
 function initEffectsUI() {
     const effectsContainer = document.createElement('div');
     effectsContainer.className = 'effects-container';
@@ -414,13 +335,11 @@ function initEffectsUI() {
         </div>
     `;
     
-    // Знаходимо контейнер для результатів і вставляємо наш блок перед ним
     const resultContainer = document.querySelector('.result-container');
     if (resultContainer) {
         resultContainer.parentNode.insertBefore(effectsContainer, resultContainer);
     }
     
-    // Додаємо обробники подій для інтерфейсу ефектів
     document.getElementById('expand-effects').addEventListener('click', function() {
         const panel = document.querySelector('.effects-panel');
         const isHidden = panel.style.display === 'none';
@@ -428,7 +347,6 @@ function initEffectsUI() {
         this.textContent = isHidden ? '▲' : '▼';
     });
     
-    // Оновлюємо відображення значень для повзунків
     document.getElementById('echo-time').addEventListener('input', function() {
         document.getElementById('echo-time-value').textContent = this.value + 's';
     });
@@ -453,7 +371,6 @@ function initEffectsUI() {
         document.getElementById('lfo-depth-value').textContent = this.value;
     });
     
-    // Обробник для кнопки застосування ефектів
     document.getElementById('apply-effects').addEventListener('click', function() {
         const newEffects = {
             useEcho: document.getElementById('effect-echo').checked,
@@ -477,21 +394,20 @@ function initEffectsUI() {
             waveform: document.getElementById('waveform-type').value
         };
         
-        // Встановлюємо інтервали для гармонізації відповідно до вибраного типу
         switch (newEffects.harmonyType) {
             case 'minor':
-                newEffects.harmonyIntervals = [3, 7]; // Мінорна терція і квінта
+                newEffects.harmonyIntervals = [3, 7];
                 break;
             case 'seventh':
-                newEffects.harmonyIntervals = [4, 7, 10]; // Мажорний септакорд
+                newEffects.harmonyIntervals = [4, 7, 10]; 
                 break;
             default: // 'major'
-                newEffects.harmonyIntervals = [4, 7]; // Мажорна терція і квінта
+                newEffects.harmonyIntervals = [4, 7]; 
         }
         
         updateEffects(newEffects);
         
-        // Перезапускаємо відтворення з новими ефектами, якщо воно було активним
+
         if (document.querySelector('.music-player').classList.contains('playing')) {
             console.log('🔄 Перезапуск з новими ефектами');
             stopMusic();
@@ -500,9 +416,7 @@ function initEffectsUI() {
     });
 }
 
-/**
- * Функція для додавання CSS стилів для інтерфейсу ефектів
- */
+
 function addEffectsStyles() {
     const styleElement = document.createElement('style');
     styleElement.textContent = `
@@ -578,24 +492,21 @@ function addEffectsStyles() {
     document.head.appendChild(styleElement);
 }
 
-/**
- * Функція для ініціалізації аудіо-ефектів, замінює стандартну функцію відтворення
- */
 function initAudioEffects() {
-    // Зберігаємо оригінальну функцію відтворення
+
     const originalPlayMusic = window.audioPlayer.playMusic;
     
-    // Замінюємо її на нашу функцію з ефектами
+
     window.audioPlayer.playMusic = playMusicWithEffects;
     
-    // Додаємо інтерфейс для ефектів
+
     initEffectsUI();
     addEffectsStyles();
     
     console.log('🎛️ Аудіо-ефекти ініціалізовано');
 }
 
-// Експортуємо нові функції
+
 window.audioEffects = {
     initAudioEffects,
     updateEffects,

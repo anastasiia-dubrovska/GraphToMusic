@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Навігація
   Object.keys(pages).forEach(navId => {
     const navElem = document.getElementById(navId);
     if (navElem) {
@@ -63,7 +62,6 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        // Якщо клікаємо по входу чи реєстрації, просто показуємо сторінку
         if (navId === 'nav-login' || navId === 'nav-signup') {
           showPage(pages[navId]);
           setActiveNav(navId);
@@ -76,7 +74,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Вихід
   navLogout.addEventListener('click', e => {
     e.preventDefault();
     isLoggedIn = false;
@@ -84,14 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
     alert('Ви вийшли з системи');
   });
 
-  // Обробка форми входу
   const signinForm = document.getElementById('signin-form');
   signinForm.addEventListener('submit', e => {
     e.preventDefault();
     const email = document.getElementById('signin-email').value.trim();
     const password = document.getElementById('signin-password').value.trim();
 
-    // Проста перевірка, заміни на реальну логіку
+
     if (email && password) {
       isLoggedIn = true;
       alert('Ви успішно увійшли');
@@ -101,7 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Обробка форми реєстрації
   const signupForm = document.getElementById('signup-form');
   signupForm.addEventListener('submit', e => {
     e.preventDefault();
@@ -119,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Тут додай реєстрацію на сервер або логіку збереження
     isLoggedIn = true;
     alert('Реєстрація пройшла успішно. Ви увійшли.');
     updateAuthLinks();
@@ -142,6 +136,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Початковий стан
   updateAuthLinks();
 });
