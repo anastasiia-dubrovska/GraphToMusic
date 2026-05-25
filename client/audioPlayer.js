@@ -42,7 +42,8 @@ function generateAudioData(functionString, options = {}) {
         useVibrato = false,
         noteDuration = NOTE_DURATION,
         genre = 'original',
-        instrument = 'piano'
+        instrument = 'piano',
+        instruments = []
     } = options;
 
     currentSettings = { xRange, pointCount, noteDuration, useAmplitudeModulation, useVibrato, genre, instrument };
@@ -51,6 +52,19 @@ function generateAudioData(functionString, options = {}) {
     const [xMin, xMax] = xRange;
     const step = (xMax - xMin) / (pointCount - 1);
     const xValues = Array.from({ length: pointCount }, (_, i) => xMin + i * step);
+    if (instruments && instruments.length > 0) {
+        return generateMultiInstrumentAudioData(functionString, {
+            xValues,
+            xRange,
+            pointCount,
+            useAmplitudeModulation,
+            useVibrato,
+            noteDuration,
+            genre,
+            instrument,
+            instruments
+        });
+    }
 
     const yValues = xValues.map(x => {
         try { return compiledFunction(x); } catch { return NaN; }
@@ -123,6 +137,172 @@ function generateAudioData(functionString, options = {}) {
     };
 }
 
+
+function generateMultiInstrumentAudioData(mainFunctionString, options) {
+    const {
+        xValues,
+        useAmplitudeModulation,
+        useVibrato,
+        noteDuration,
+        genre,
+        instrument,
+        instruments
+    } = options;
+
+    const tracks = [];
+    const allNotes = [];
+
+    instruments.forEach((inst, trackIndex) => {
+        let compiledFunction;
+
+        try {
+            compiledFunction = window.visualization.createFunction(inst.functionExpression);
+        } catch (error) {
+            console.warn('Некоректна функція інструмента:', inst.functionExpression, error);
+            return;
+        }
+
+        const yValues = xValues.map(x => {
+            try {
+                return compiledFunction(x);
+            } catch {
+                return NaN;
+            }
+        });
+
+        const validY = yValues.filter(y => Number.isFinite(y));
+        if (validY.length === 0) return;
+
+        const yMin = Math.min(...validY);
+        const yMax = Math.max(...validY);
+        const span = Math.max(1e-9, yMax - yMin);
+
+        const normalizedValues = yValues.map(y =>
+            Number.isFinite(y) ? (y - yMin) / span : 0.5
+        );
+
+        let notes = normalizedValues.map((norm, index) => ({
+            frequency: mapToFrequency(norm) * Math.pow(2, inst.octave || 0),
+            duration: inst.noteDuration || noteDuration,
+            amplitude: inst.volume ?? 0.5,
+            index,
+            trackIndex,
+            instrument: inst.type || instrument,
+            instrumentName: inst.name || inst.type,
+            sourceFunction: inst.functionExpression
+        }));
+
+        if (useAmplitudeModulation) {
+            const h = 0.001;
+
+            const derivative = xValues.map(x => {
+                try {
+                    return Math.abs((compiledFunction(x + h) - compiledFunction(x - h)) / (2 * h));
+                } catch {
+                    return 0;
+                }
+            });
+
+            const maxD = Math.max(...derivative, 1e-9);
+
+            derivative.forEach((d, i) => {
+                notes[i].amplitude = Math.min(
+                    1,
+                    (inst.volume ?? 0.5) * (0.3 + 0.7 * (d / maxD))
+                );
+            });
+        }
+
+        if (useVibrato) {
+            const h = 0.001;
+
+            const secondDerivative = xValues.map(x => {
+                try {
+                    return (compiledFunction(x + h) - 2 * compiledFunction(x) + compiledFunction(x - h)) / (h * h);
+                } catch {
+                    return 0;
+                }
+            });
+
+            const maxS = Math.max(...secondDerivative.map(v => Math.abs(v)), 1e-9);
+
+            secondDerivative.forEach((s, i) => {
+                const normalized = Math.abs(s) / maxS;
+                notes[i].vibratoDepth = normalized * 8;
+                notes[i].vibratoRate = 4 + normalized * 5;
+            });
+        }
+
+        if (window.genreEngine?.applyGenreToNotes) {
+            notes = window.genreEngine.applyGenreToNotes(notes, genre);
+        }
+
+        tracks.push({
+            name: inst.name,
+            type: inst.type,
+            functionExpression: inst.functionExpression,
+            notes,
+            yValues,
+            normalizedValues
+        });
+
+        allNotes.push(...notes);
+    });
+
+    if (!tracks.length) {
+        throw new Error('Жоден інструмент не має коректної функції');
+    }
+
+    return {
+        notes: allNotes,
+        tracks,
+        isMultiInstrument: true,
+        tempo: 120,
+        xValues,
+        yValues: tracks[0].yValues,
+        originalValues: tracks[0].yValues,
+        normalizedValues: tracks[0].normalizedValues,
+        sourceFunction: mainFunctionString,
+        genre,
+        instrument,
+        instruments
+    };
+}
+
+function playMultiInstrumentMusic(startTime) {
+    console.log('MULTI TRACKS:', audioData.tracks);
+
+    if (!audioData?.tracks?.length) return;
+
+    let maxEndTime = startTime;
+
+    audioData.tracks.forEach(track => {
+        let timeCursor = startTime;
+
+        track.notes.forEach(note => {
+            playGeneratedNote(note, timeCursor);
+            timeCursor += note.duration ?? currentSettings.noteDuration;
+        });
+
+        if (timeCursor > maxEndTime) {
+            maxEndTime = timeCursor;
+        }
+    });
+
+    const totalDurationMs = Math.max(0, (maxEndTime - ensureAudioContext().currentTime) * 1000);
+
+    setTimeout(() => {
+        isPlaying = false;
+        clearInterval(playbackInterval);
+
+        const bar = document.querySelector('.progress-bar');
+        if (bar) bar.style.width = '100%';
+
+        const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+        if (playerLabel) playerLabel.textContent = 'Відтворення завершено';
+    }, totalDurationMs + 700);
+}
+
 function createInstrumentChain(ctx, preset, frequency, startTime, duration, amplitude) {
     const masterGain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
@@ -156,24 +336,60 @@ function createInstrumentChain(ctx, preset, frequency, startTime, duration, ampl
     return { oscillators, filter, masterGain };
 }
 
-function playNote(note, startTime = ensureAudioContext().currentTime) {
+function playGeneratedNote(note, startTime = ensureAudioContext().currentTime) {
     const ctx = ensureAudioContext();
-    const preset = window.genreEngine?.INSTRUMENT_PRESETS?.[note.instrument || currentSettings.instrument] || window.genreEngine?.INSTRUMENT_PRESETS?.piano || { waveforms: ['sine'], attack: 0.02, release: 0.12, brightness: 2000 };
+
+    const instrumentKey = note.instrument || currentSettings.instrument || 'piano';
+
+    const preset =
+        window.instrumentEngine?.INSTRUMENT_PRESETS?.[instrumentKey] ||
+        window.genreEngine?.INSTRUMENT_PRESETS?.[instrumentKey] ||
+        window.instrumentEngine?.INSTRUMENT_PRESETS?.piano ||
+        window.genreEngine?.INSTRUMENT_PRESETS?.piano ||
+        {
+            waveforms: ['sine'],
+            attack: 0.02,
+            release: 0.12,
+            brightness: 2000
+        };
+
+    console.log('PLAY NOTE:', {
+        instrument: instrumentKey,
+        frequency: note.frequency,
+        duration: note.duration,
+        amplitude: note.amplitude,
+        preset
+    });
+
     const amplitude = note.amplitude ?? 0.5;
     const duration = note.duration ?? currentSettings.noteDuration;
 
-    const chain = createInstrumentChain(ctx, preset, note.frequency, startTime, duration, amplitude);
+    const chain = createInstrumentChain(
+        ctx,
+        preset,
+        note.frequency,
+        startTime,
+        duration,
+        amplitude
+    );
 
     if (note.vibratoDepth && note.vibratoRate) {
         const vibratoOsc = ctx.createOscillator();
         const vibratoGain = ctx.createGain();
+
         vibratoOsc.type = 'sine';
         vibratoOsc.frequency.value = note.vibratoRate;
         vibratoGain.gain.value = note.vibratoDepth;
+
         vibratoOsc.connect(vibratoGain);
-        chain.oscillators.forEach(osc => vibratoGain.connect(osc.frequency));
+
+        chain.oscillators.forEach(osc => {
+            vibratoGain.connect(osc.frequency);
+        });
+
         vibratoOsc.start(startTime);
         vibratoOsc.stop(startTime + duration);
+
         activeNodes.push(vibratoOsc, vibratoGain);
     }
 }
@@ -194,36 +410,41 @@ function playMusic() {
     if (!audioData?.notes?.length) return;
 
     if (isPlaying) stopMusic();
+
     const ctx = ensureAudioContext();
     if (ctx.state === 'suspended') ctx.resume();
 
     isPlaying = true;
+
     const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
     if (playerLabel) playerLabel.textContent = 'Зараз грає...';
+
     document.querySelector('.music-player')?.classList.add('playing');
 
-    let startTime = ctx.currentTime;
-    if (playbackPosition > 0) {
-        currentNote = Math.floor(playbackPosition / currentSettings.noteDuration);
-        startTime -= playbackPosition - currentNote * currentSettings.noteDuration;
-    }
+    let startTime = ctx.currentTime + 0.05;
 
     playbackStartTime = ctx.currentTime - playbackPosition;
 
-    let timeCursor = startTime;
-    for (let i = currentNote; i < audioData.notes.length; i++) {
-        const note = audioData.notes[i];
-        playNote(note, timeCursor);
-        timeCursor += note.duration ?? currentSettings.noteDuration;
+    if (audioData.isMultiInstrument && audioData.tracks?.length) {
+        playMultiInstrumentMusic(startTime);
+    } else {
+        let timeCursor = startTime;
+
+        for (let i = currentNote; i < audioData.notes.length; i++) {
+            const note = audioData.notes[i];
+            playGeneratedNote(note, timeCursor);
+            timeCursor += note.duration ?? currentSettings.noteDuration;
+        }
+
+        setTimeout(() => {
+            if (isPlaying) stopMusic();
+        }, Math.max(0, (timeCursor - ctx.currentTime)) * 1000 + 150);
     }
 
     clearInterval(playbackInterval);
     playbackInterval = setInterval(updatePlaybackProgress, 100);
-
-    setTimeout(() => {
-        if (isPlaying) stopMusic();
-    }, Math.max(0, (timeCursor - ctx.currentTime)) * 1000 + 150);
 }
+
 
 function updatePlaybackProgress() {
     if (!isPlaying || !audioData?.notes?.length || !audioContext) return;
@@ -244,7 +465,10 @@ function updatePlaybackProgress() {
         parseFloat(document.getElementById('xMin')?.value ?? currentSettings.xRange[0]),
         parseFloat(document.getElementById('xMax')?.value ?? currentSettings.xRange[1]));
 
-    if (currentTime >= totalTime) stopMusic();
+    if (currentTime >= totalTime) {
+        isPlaying = false;
+        clearInterval(playbackInterval);
+    }
 }
 
 function pauseMusic() {
@@ -308,7 +532,8 @@ function processAudioFromFunction(functionData, options = {}) {
         useAmplitudeModulation: options.useAmplitudeModulation ?? currentSettings.useAmplitudeModulation,
         useVibrato: options.useVibrato ?? currentSettings.useVibrato,
         genre: options.genre || currentSettings.genre || 'original',
-        instrument: options.instrument || currentSettings.instrument || 'piano'
+        instrument: options.instrument || currentSettings.instrument || 'piano',
+        instruments: options.instruments || []
     };
 
     audioData = generateAudioData(functionData.functionString, mergedOptions);
@@ -324,15 +549,43 @@ function processAudioFromFunction(functionData, options = {}) {
 function initAudioPlayer() {
     const pointCountInput = document.getElementById('pointCount');
     const pointCountValue = document.getElementById('pointCountValue');
-    pointCountInput?.addEventListener('input', () => { if (pointCountValue) pointCountValue.textContent = pointCountInput.value; });
+
+    pointCountInput?.addEventListener('input', () => {
+        if (pointCountValue) pointCountValue.textContent = pointCountInput.value;
+    });
 
     const noteDurationInput = document.getElementById('noteDuration');
     const noteDurationValue = document.getElementById('noteDurationValue');
-    noteDurationInput?.addEventListener('input', () => { if (noteDurationValue) noteDurationValue.textContent = `${noteDurationInput.value}s`; });
+
+    noteDurationInput?.addEventListener('input', () => {
+        if (noteDurationValue) noteDurationValue.textContent = `${noteDurationInput.value}s`;
+    });
 
     document.querySelector('.music-player')?.addEventListener('click', () => {
         if (!audioData?.notes?.length) return;
-        if (isPlaying) pauseMusic(); else playMusic();
+        if (isPlaying) pauseMusic();
+        else playMusic();
+    });
+
+    document.querySelector('.btn-play')?.addEventListener('click', () => {
+        console.log('PLAY BUTTON CLICKED', audioData);
+        if (!audioData?.notes?.length) {
+            alert('Спочатку згенеруйте композицію');
+            return;
+        }
+        playMusic();
+    });
+
+    document.querySelector('.btn-pause')?.addEventListener('click', () => {
+        pauseMusic();
+    });
+
+    document.querySelector('.btn-stop')?.addEventListener('click', () => {
+        stopMusic();
+    });
+
+    document.querySelector('.btn-save')?.addEventListener('click', () => {
+        saveComposition();
     });
 
     ensureAudioContext();
@@ -354,6 +607,10 @@ function applySettings() {
     const funcStr = document.querySelector('.function-input')?.value;
     if (!funcStr) return alert('Будь ласка, введіть математичну функцію');
 
+    const instruments = window.instrumentEngine?.getInstrumentSettings
+        ? window.instrumentEngine.getInstrumentSettings()
+        : [];
+
     processAudioFromFunction({ functionString: funcStr }, {
         xRange: [xMin, xMax],
         pointCount,
@@ -361,7 +618,8 @@ function applySettings() {
         useAmplitudeModulation,
         useVibrato,
         genre,
-        instrument
+        instrument,
+        instruments
     });
 }
 
@@ -379,3 +637,8 @@ window.audioPlayer = {
 };
 
 window.applySettings = applySettings;
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAudioPlayer);
+} else {
+    initAudioPlayer();
+}

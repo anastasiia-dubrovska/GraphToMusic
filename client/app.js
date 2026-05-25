@@ -149,19 +149,33 @@ function initGenerator() {
         const functionExpression = functionInput?.value?.trim();
         if (!functionExpression) return alert('Будь ласка, введіть математичну функцію');
 
-        const instruments = window.instrumentEngine?.getInstrumentSettings? window.instrumentEngine.getInstrumentSettings(): [];
+
+        const instruments = window.instrumentEngine?.getInstrumentSettings
+            ? window.instrumentEngine.getInstrumentSettings()
+            : [];
 
         const options = {
-            useAmplitudeModulation: document.getElementById('amplitude-modulation').checked,
-            useVibrato: document.getElementById('vibrato').checked,
-            genre,
-            instrument,
+            useAmplitudeModulation: document.getElementById('amplitude-modulation')?.checked ?? false,
+            useVibrato: document.getElementById('vibrato')?.checked ?? false,
+            genre: document.getElementById('genreSelect')?.value || 'original',
+            instrument: document.getElementById('instrumentSelect')?.value || 'piano',
             instruments
         };
+        
 
         document.querySelector('.loading').style.display = 'block';
         try {
-            window.audioPlayer?.processAudioFromFunction?.({ functionString: functionExpression }, options);
+           const functionString = document.querySelector('.function-input')?.value?.trim();
+
+            if (!functionString) {
+                alert('Будь ласка, введіть математичну функцію');
+                return;
+            }
+
+            window.audioPlayer.processAudioFromFunction(
+                { functionString: functionString },
+                options
+            );
         } catch (error) {
             document.querySelector('.loading').style.display = 'none';
             alert('Помилка генерації: ' + error.message);
@@ -242,3 +256,48 @@ function loadUserCompositions() {
         })
         .catch(err => console.error('loadUserCompositions error', err));
 }
+function generateCurrentComposition() {
+    const functionString = document.querySelector('.function-input')?.value?.trim();
+
+    if (!functionString) {
+        alert('Введіть основну функцію');
+        return;
+    }
+
+    const instruments = window.instrumentEngine?.getInstrumentSettings
+        ? window.instrumentEngine.getInstrumentSettings()
+        : [];
+
+    const options = {
+        xRange: [
+            parseFloat(document.getElementById('xMin')?.value || -10),
+            parseFloat(document.getElementById('xMax')?.value || 10)
+        ],
+        pointCount: parseInt(document.getElementById('pointCount')?.value || 100, 10),
+        noteDuration: parseFloat(document.getElementById('noteDuration')?.value || 0.2),
+        useAmplitudeModulation:
+            document.getElementById('amplitude-modulation')?.checked ||
+            document.getElementById('amplitudeModulation')?.checked ||
+            false,
+        useVibrato:
+            document.getElementById('vibrato')?.checked ||
+            document.getElementById('vibratoEffect')?.checked ||
+            false,
+        genre: document.getElementById('genreSelect')?.value || 'original',
+        instrument: document.getElementById('instrumentSelect')?.value || 'piano',
+        instruments
+    };
+
+    const audioData = window.audioPlayer.processAudioFromFunction(
+        { functionString },
+        options
+    );
+
+    window.visualization.drawFunctionGraph(
+        functionString,
+        options.xRange,
+        audioData
+    );
+}
+
+window.generateCurrentComposition = generateCurrentComposition;

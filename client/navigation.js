@@ -138,3 +138,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
   updateAuthLinks();
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.dataset.filter;
+            document.querySelectorAll('.example-card').forEach(card => {
+                card.classList.toggle('hidden',
+                    filter !== 'all' && card.dataset.category !== filter
+                );
+            });
+        });
+    });
+
+
+    document.querySelectorAll('.try-example').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const fn = btn.dataset.function;
+            const genre = document.getElementById('exampleGenre')?.value || 'original';
+            const instrument = document.getElementById('exampleInstrument')?.value || 'piano';
+
+
+            document.getElementById('generator-page').style.display = 'block';
+            document.getElementById('examples-page').style.display = 'none';
+            document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+            document.getElementById('nav-generator').classList.add('active');
+
+
+            document.querySelector('.function-input').value = fn;
+            const genreSelect = document.getElementById('genreSelect');
+            const instrSelect = document.getElementById('instrumentSelect');
+            if (genreSelect) genreSelect.value = genre;
+            if (instrSelect) instrSelect.value = instrument;
+
+            document.querySelector('.btn-generate')?.click();
+        });
+    });
+});

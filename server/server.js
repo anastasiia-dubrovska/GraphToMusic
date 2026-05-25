@@ -50,7 +50,7 @@ function authenticateToken(req, res, next) {
     const usersCollection = db.collection('users');
     const compositionsCollection = db.collection('compositions');
 
-    // Реєстрація
+
     app.post('/api/auth/register', async (req, res) => {
         const { email, password } = req.body;
         try {

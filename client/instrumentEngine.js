@@ -1,205 +1,159 @@
-
-const INSTRUMENT_PRESETS = {
-    piano: {
-        name: 'Piano',
-        waveform: 'triangle',
-        volume: 0.55,
-        octave: 0,
-        noteDuration: 0.22
-    },
-    bass: {
-        name: 'Bass',
-        waveform: 'sine',
-        volume: 0.7,
-        octave: -1,
-        noteDuration: 0.35
-    },
-    flute: {
-        name: 'Flute',
-        waveform: 'sine',
-        volume: 0.45,
-        octave: 1,
-        noteDuration: 0.28
-    },
-    synth: {
-        name: 'Synth',
-        waveform: 'sawtooth',
-        volume: 0.5,
-        octave: 0,
-        noteDuration: 0.18
-    },
-    guitar: {
-        name: 'Guitar',
-        waveform: 'square',
-        volume: 0.5,
-        octave: 0,
-        noteDuration: 0.25
-    },
-    violin: {
-        name: 'Violin',
-        waveform: 'sawtooth',
-        volume: 0.42,
-        octave: 1,
-        noteDuration: 0.3
-    },
-    pad: {
-        name: 'Ambient Pad',
-        waveform: 'triangle',
-        volume: 0.35,
-        octave: 0,
-        noteDuration: 0.55
-    },
-    bell: {
-        name: 'Bell',
-        waveform: 'sine',
-        volume: 0.4,
-        octave: 2,
-        noteDuration: 0.18
-    }
+const INSTRUMENT_LIST = {
+    piano: { name: 'Piano', waveforms: ['triangle', 'sine'], attack: 0.02, release: 0.18, brightness: 2200 },
+    synth: { name: 'Synth', waveforms: ['sawtooth', 'square'], attack: 0.01, release: 0.12, brightness: 3200 },
+    bass: { name: 'Bass', waveforms: ['sine'], attack: 0.03, release: 0.16, brightness: 900 },
+    flute: { name: 'Flute', waveforms: ['sine', 'triangle'], attack: 0.08, release: 0.25, brightness: 2600 },
+    guitar: { name: 'Guitar', waveforms: ['square', 'triangle'], attack: 0.02, release: 0.22, brightness: 1800 },
+    violin: { name: 'Violin', waveforms: ['sawtooth', 'triangle'], attack: 0.09, release: 0.3, brightness: 2800 },
+    bell: { name: 'Bell', waveforms: ['sine', 'triangle'], attack: 0.005, release: 0.45, brightness: 4200 },
+    pad: { name: 'Ambient Pad', waveforms: ['triangle', 'sine'], attack: 0.25, release: 0.55, brightness: 1600 }
 };
 
-let instrumentCounter = 0;
+let extraInstrumentCounter = 0;
 
-function createInstrumentCard(data = {}) {
-    instrumentCounter++;
+function fillMainInstrumentSelect() {
+    const select = document.getElementById('instrumentSelect');
+    if (!select) return;
 
-    const id = `instrument-${instrumentCounter}`;
+    select.innerHTML = Object.entries(INSTRUMENT_LIST)
+        .map(([key, preset]) => `<option value="${key}">${preset.name}</option>`)
+        .join('');
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'instrument-card';
-    wrapper.dataset.instrumentId = id;
+    select.value = 'piano';
+}
 
-    wrapper.innerHTML = `
+function createExtraInstrumentCard() {
+    extraInstrumentCounter++;
+
+    const card = document.createElement('div');
+    card.className = 'instrument-card';
+
+    const options = Object.entries(INSTRUMENT_LIST)
+        .map(([key, preset]) => `<option value="${key}">${preset.name}</option>`)
+        .join('');
+
+    card.innerHTML = `
         <div class="instrument-card-header">
-            <h4>Інструмент ${instrumentCounter}</h4>
+            <h4>Додаткова функція ${extraInstrumentCounter}</h4>
             <button type="button" class="remove-instrument-btn">×</button>
         </div>
 
         <label>
-            Тип інструменту
-            <select class="instrument-type">
-                <option value="piano">Piano</option>
-                <option value="bass">Bass</option>
-                <option value="flute">Flute</option>
-                <option value="synth">Synth</option>
-                <option value="guitar">Guitar</option>
-                <option value="violin">Violin</option>
-                <option value="pad">Ambient Pad</option>
-                <option value="bell">Bell</option>
-            </select>
+            Функція
+            <input type="text" class="instrument-function" value="cos(x)">
         </label>
 
         <label>
-            Функція для інструменту
-            <input type="text" class="instrument-function" value="${data.function || 'sin(x)'}">
+            Інструмент
+            <select class="instrument-type">
+                ${options}
+            </select>
         </label>
 
         <div class="instrument-grid">
             <label>
                 Гучність
-                <input type="range" class="instrument-volume" min="0.1" max="1" step="0.05" value="${data.volume || 0.5}">
+                <input type="range" class="instrument-volume" min="0.1" max="1" step="0.05" value="0.5">
             </label>
 
             <label>
                 Октава
-                <input type="number" class="instrument-octave" min="-3" max="3" value="${data.octave || 0}">
+                <input type="number" class="instrument-octave" min="-3" max="3" value="0">
             </label>
 
             <label>
                 Тривалість ноти
-                <input type="number" class="instrument-duration" min="0.05" max="1" step="0.05" value="${data.noteDuration || 0.2}">
+                <input type="number" class="instrument-duration" min="0.05" max="1" step="0.05" value="0.2">
             </label>
         </div>
     `;
 
-    const typeSelect = wrapper.querySelector('.instrument-type');
-    typeSelect.value = data.type || 'piano';
+    card.querySelector('.instrument-type').value = 'violin';
 
-    typeSelect.addEventListener('change', () => {
-        const preset = INSTRUMENT_PRESETS[typeSelect.value];
-
-        wrapper.querySelector('.instrument-volume').value = preset.volume;
-        wrapper.querySelector('.instrument-octave').value = preset.octave;
-        wrapper.querySelector('.instrument-duration').value = preset.noteDuration;
+    card.querySelector('.remove-instrument-btn').addEventListener('click', () => {
+        card.remove();
     });
 
-    wrapper.querySelector('.remove-instrument-btn').addEventListener('click', () => {
-        wrapper.remove();
-    });
-
-    return wrapper;
+    return card;
 }
 
-function initInstrumentEngine() {
+function addExtraInstrument() {
     const list = document.getElementById('instrumentList');
-    const addBtn = document.getElementById('addInstrumentBtn');
+    if (!list) return;
 
-    if (!list || !addBtn) return;
-    list.innerHTML = '';
+    list.appendChild(createExtraInstrumentCard());
+    const applyBtn = document.getElementById('applyInstrumentsBtn');
 
-    addBtn.addEventListener('click', () => {
-        list.appendChild(createInstrumentCard());
-    });
-
-    list.appendChild(createInstrumentCard({
-        type: 'piano',
-        function: 'sin(x)',
-        volume: 0.55,
-        octave: 0,
-        noteDuration: 0.22
-    }));
-
-    list.appendChild(createInstrumentCard({
-        type: 'bass',
-        function: 'cos(x)',
-        volume: 0.7,
-        octave: -1,
-        noteDuration: 0.35
-    }));
+    if (applyBtn) {
+        applyBtn.style.display = 'inline-flex';
+    }
 }
 
 function getInstrumentSettings() {
-    const cards = document.querySelectorAll('.instrument-card');
+    const mainFunction = document.querySelector('.function-input')?.value?.trim() || 'sin(x)';
+    const mainInstrument = document.getElementById('instrumentSelect')?.value || 'piano';
+    const noteDuration = parseFloat(document.getElementById('noteDuration')?.value || '0.2');
 
-    return Array.from(cards).map(card => {
-        const type = card.querySelector('.instrument-type').value;
-        const preset = INSTRUMENT_PRESETS[type];
+    const instruments = [
+        {
+            type: mainInstrument,
+            name: INSTRUMENT_LIST[mainInstrument]?.name || 'Piano',
+            functionExpression: mainFunction,
+            volume: 0.5,
+            octave: 0,
+            noteDuration,
+            ...INSTRUMENT_LIST[mainInstrument]
+        }
+    ];
 
-        return {
+    document.querySelectorAll('.instrument-card').forEach(card => {
+        const type = card.querySelector('.instrument-type')?.value || 'piano';
+        const functionExpression = card.querySelector('.instrument-function')?.value?.trim();
+
+        if (!functionExpression) return;
+
+        instruments.push({
             type,
-            name: preset.name,
-            waveform: preset.waveform,
-            functionExpression: card.querySelector('.instrument-function').value,
-            volume: parseFloat(card.querySelector('.instrument-volume').value),
-            octave: parseInt(card.querySelector('.instrument-octave').value),
-            noteDuration: parseFloat(card.querySelector('.instrument-duration').value)
-        };
+            name: INSTRUMENT_LIST[type]?.name || type,
+            functionExpression,
+            volume: parseFloat(card.querySelector('.instrument-volume')?.value || '0.5'),
+            octave: parseInt(card.querySelector('.instrument-octave')?.value || '0', 10),
+            noteDuration: parseFloat(card.querySelector('.instrument-duration')?.value || noteDuration),
+            ...INSTRUMENT_LIST[type]
+        });
     });
+
+    return instruments;
 }
 
-window.instrumentEngine = {
-    initInstrumentEngine,
-    getInstrumentSettings,
-    INSTRUMENT_PRESETS
-};
+function initInstrumentEngine() {
+    fillMainInstrumentSelect();
 
-function safeInitInstrumentEngine() {
-    const list = document.getElementById('instrumentList');
     const addBtn = document.getElementById('addInstrumentBtn');
-
-    if (!list || !addBtn) {
-        console.warn('instrumentList або addInstrumentBtn не знайдено');
-        return;
+    if (addBtn) {
+        addBtn.onclick = addExtraInstrument;
     }
 
-    if (list.dataset.initialized === 'true') return;
-    list.dataset.initialized = 'true';
-
-    initInstrumentEngine();
+    const applyBtn = document.getElementById('applyInstrumentsBtn');
+    if (applyBtn) {
+        applyBtn.onclick = () => {
+            if (typeof window.generateCurrentComposition === 'function') {
+                window.generateCurrentComposition();
+            } else {
+                alert('Функцію генерації не знайдено');
+            }
+        };
+    }
 }
+window.instrumentEngine = {
+    INSTRUMENT_PRESETS: INSTRUMENT_LIST,
+    initInstrumentEngine,
+    getInstrumentSettings,
+    addExtraInstrument
+};
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', safeInitInstrumentEngine);
+    document.addEventListener('DOMContentLoaded', initInstrumentEngine);
 } else {
-    safeInitInstrumentEngine();
+    initInstrumentEngine();
 }

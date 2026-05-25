@@ -9,6 +9,78 @@
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/midi.js/0.3.1/midi.min.js"></script>
 </head>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // Фільтр
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const filter = btn.dataset.filter;
+            document.querySelectorAll('.example-card').forEach(card => {
+                card.classList.toggle('hidden', filter !== 'all' && card.dataset.category !== filter);
+            });
+        });
+    });
+
+    function goToGenerator(fn, genre, instrument, addFn, addInstr) {
+        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+        document.getElementById('generator-page').style.display = 'block';
+        document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+        document.getElementById('nav-generator').classList.add('active');
+
+        document.querySelector('.function-input').value = fn;
+        const genreSelect = document.getElementById('genreSelect');
+        const instrSelect = document.getElementById('instrumentSelect');
+        if (genreSelect) genreSelect.value = genre;
+        if (instrSelect) instrSelect.value = instrument;
+
+        if (addFn) {
+            setTimeout(() => {
+                // Клікаємо "Додати ще одну функцію"
+                document.getElementById('addInstrumentBtn')?.click();
+                // Знаходимо останню додану картку і заповнюємо
+                setTimeout(() => {
+                    const cards = document.querySelectorAll('.instrument-card');
+                    const last = cards[cards.length - 1];
+                    if (last) {
+                        const fnInput = last.querySelector('input[type="text"], input:not([type="range"])');
+                        const instrSel = last.querySelector('select');
+                        if (fnInput) fnInput.value = addFn;
+                        if (instrSel) instrSel.value = addInstr;
+                    }
+                    document.getElementById('applyInstrumentsBtn')?.click();
+                }, 100);
+            }, 200);
+        }
+
+        setTimeout(() => document.querySelector('.btn-generate')?.click(), 400);
+    }
+
+    // Кнопка "Спробувати"
+    document.querySelectorAll('.try-example').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const fn = btn.dataset.function;
+            const genre = document.getElementById('exampleGenre')?.value || 'original';
+            const instrument = document.getElementById('exampleInstrument')?.value || 'piano';
+            goToGenerator(fn, genre, instrument, null, null);
+        });
+    });
+
+    // Кнопка "З додатковим інструментом"
+    document.querySelectorAll('.try-example-poly').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const fn = btn.dataset.function;
+            const [addFn, addInstr] = (btn.dataset.add || '').split('|');
+            const genre = document.getElementById('exampleGenre')?.value || 'original';
+            const instrument = document.getElementById('exampleInstrument')?.value || 'piano';
+            goToGenerator(fn, genre, instrument, addFn, addInstr || 'synth');
+        });
+    });
+
+});
+</script>
 <body>
     <header>
         <div class="container">
@@ -44,26 +116,6 @@
                         <button class="btn-generate">Генерувати</button>
                     </div>
 
-                    <section class="instrument-section">
-                        <div class="reverse-header">
-                            <div>
-                                <p class="mini-label">Polyphonic mode</p>
-                                <h3>Інструменти та власні графіки</h3>
-                            </div>
-                            <span class="math-badge">multi-function</span>
-                        </div>
-
-                        <p class="reverse-copy">
-                            Кожен інструмент може мати власну математичну функцію, гучність,
-                            тривалість нот та тембр.
-                        </p>
-
-                        <div id="instrumentList" class="instrument-list"></div>
-
-                        <button type="button" id="addInstrumentBtn" class="btn-secondary">
-                            + Додати інструмент
-                        </button>
-                    </section>
 
                     <div class="generator-grid">
                         <section class="control-card">
@@ -86,6 +138,31 @@
                                 <div class="genre-description">
                                     Доступні синтетичні інструменти: <strong>Piano</strong>, <strong>Synth</strong>, <strong>Bass</strong>, <strong>Flute</strong>.
                                 </div>
+                                <section class="instrument-section">
+                                    <div class="reverse-header">
+                                        <div>
+                                            <p class="mini-label">Polyphonic mode</p>
+                                            <h3>Додаткові інструменти</h3>
+                                        </div>
+                                        <span class="math-badge">multi-function</span>
+                                    </div>
+
+                                    <p class="reverse-copy">
+                                        Основна функція грає вибраним інструментом вище. Тут можна додати ще функції,
+                                        які звучатимуть одночасно з основною мелодією.
+                                    </p>
+
+                                    <div id="instrumentList" class="instrument-list"></div>
+
+                                    <button type="button" id="addInstrumentBtn" class="btn-secondary">
+                                        + Додати ще одну функцію
+                                    </button>
+                                    <button type="button" id="applyInstrumentsBtn" class="btn-secondary hidden-apply-btn">
+                                        Застосувати інструменти
+                                    </button>
+                                   
+                                </section>
+                                
                             </div>
 
                             <div class="options modern-options">
@@ -238,64 +315,473 @@
             </div>
 
             <div class="page" id="examples-page" style="display: none;">
-                <h2 style="text-align: center; margin-bottom: 30px;">Приклади функцій</h2>
-                <div class="examples-container">
-                    <div class="example-card">
-                        <h3>Синусоїда</h3>
-                        <div class="function">sin(x)</div>
-                        <div class="example-graph" id="example-graph-1" data-function="sin(x)"></div>
-                        <p>Класична хвильова форма, що створює плавні переходи</p>
-                        <button class="try-example" data-function="sin(x)">Спробувати</button>
+                <div class="examples-page-wrapper">
+                    <div class="examples-hero">
+                        <div class="eyebrow">Бібліотека функцій</div>
+                        <h2>Приклади функцій</h2>
+                        <p>Оберіть функцію, жанр та інструмент — і одразу почуйте результат</p>
                     </div>
-                    <div class="example-card">
-                        <h3>Складна хвиля</h3>
-                        <div class="function">sin(x) + sin(2*x)/2</div>
-                        <div class="example-graph" id="example-graph-2" data-function="sin(x) + sin(2*x)/2"></div>
-                        <p>Комбінація синусоїд різної частоти</p>
-                        <button class="try-example" data-function="sin(x) + sin(2*x)/2">Спробувати</button>
+
+                    <div class="examples-filter">
+                        <button class="filter-btn active" data-filter="all">Усі</button>
+                        <button class="filter-btn" data-filter="trig">Тригонометричні</button>
+                        <button class="filter-btn" data-filter="exp">Експоненціальні</button>
+                        <button class="filter-btn" data-filter="poly">Поліноміальні</button>
+                        <button class="filter-btn" data-filter="complex">Складні</button>
                     </div>
-                    <div class="example-card">
-                        <h3>Експонента</h3>
-                        <div class="function">exp(-x/10)*sin(x)</div>
-                        <div class="example-graph" id="example-graph-3" data-function="exp(-x/10)*sin(x)"></div>
-                        <p>Поступове затухання звуку</p>
-                        <button class="try-example" data-function="exp(-x/10)*sin(x)">Спробувати</button>
+
+                    <div class="examples-quick-settings">
+                        <div class="quick-setting">
+                            <label>Жанр</label>
+                            <select id="exampleGenre" class="genre-select">
+                                <option value="original">Original</option>
+                                <option value="pop">Pop</option>
+                                <option value="jazz">Jazz</option>
+                                <option value="edm">EDM</option>
+                            </select>
+                        </div>
+                        <div class="quick-setting">
+                            <label>Інструмент</label>
+                            <select id="exampleInstrument" class="genre-select">
+                                <option value="piano">Piano</option>
+                                <option value="synth">Synth</option>
+                                <option value="bass">Bass</option>
+                                <option value="flute">Flute</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="examples-container" id="examples-grid">
+
+                        <div class="example-card" data-category="trig">
+                            <div class="example-card-top">
+                                <span class="example-tag">Тригонометрична</span>
+                                <h3>Синусоїда</h3>
+                                <div class="function">sin(x)</div>
+                                <div class="example-graph" data-function="sin(x)"></div>
+                                <p>Класична хвильова форма — плавні переходи між нотами</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="sin(x)">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="sin(x)" data-add="sin(2*x)/2|synth">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="trig">
+                            <div class="example-card-top">
+                                <span class="example-tag">Тригонометрична</span>
+                                <h3>Косинус</h3>
+                                <div class="function">cos(x)</div>
+                                <div class="example-graph" data-function="cos(x)"></div>
+                                <p>Зсунута синусоїда — схожий звук з іншою фазою</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="cos(x)">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="cos(x)" data-add="sin(x/2)|flute">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="trig">
+                            <div class="example-card-top">
+                                <span class="example-tag">Тригонометрична</span>
+                                <h3>Подвійна частота</h3>
+                                <div class="function">sin(2*x)</div>
+                                <div class="example-graph" data-function="sin(2*x)"></div>
+                                <p>Вдвічі швидші коливання — вищий темп мелодії</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="sin(2*x)">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="sin(2*x)" data-add="cos(3*x)/2|bass">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="trig">
+                            <div class="example-card-top">
+                                <span class="example-tag">Тригонометрична</span>
+                                <h3>Тангенс</h3>
+                                <div class="function">tan(x)/5</div>
+                                <div class="example-graph" data-function="tan(x)/5"></div>
+                                <p>Різкі стрибки — характерні акценти в мелодії</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="tan(x)/5">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="tan(x)/5" data-add="sin(x)|piano">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="complex">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--complex">Складна</span>
+                                <h3>Складна хвиля</h3>
+                                <div class="function">sin(x) + sin(2*x)/2</div>
+                                <div class="example-graph" data-function="sin(x) + sin(2*x)/2"></div>
+                                <p>Комбінація двох гармонік — багатший тембр</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="sin(x) + sin(2*x)/2">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="sin(x) + sin(2*x)/2" data-add="sin(3*x)/3|synth">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="complex">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--complex">Складна</span>
+                                <h3>Три гармоніки</h3>
+                                <div class="function">sin(x) + sin(3*x)/3 + sin(5*x)/5</div>
+                                <div class="example-graph" data-function="sin(x) + sin(3*x)/3 + sin(5*x)/5"></div>
+                                <p>Наближення до прямокутної хвилі — характерно для органу</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="sin(x) + sin(3*x)/3 + sin(5*x)/5">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="sin(x) + sin(3*x)/3 + sin(5*x)/5" data-add="sin(7*x)/7|flute">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="complex">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--complex">Складна</span>
+                                <h3>Биття</h3>
+                                <div class="function">sin(x) * cos(0.2*x)</div>
+                                <div class="example-graph" data-function="sin(x) * cos(0.2*x)"></div>
+                                <p>Ефект биття двох близьких частот — пульсуючий звук</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="sin(x) * cos(0.2*x)">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="sin(x) * cos(0.2*x)" data-add="cos(0.3*x)|bass">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="complex">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--complex">Складна</span>
+                                <h3>Частотна модуляція</h3>
+                                <div class="function">sin(x + sin(3*x))</div>
+                                <div class="example-graph" data-function="sin(x + sin(3*x))"></div>
+                                <p>FM-синтез — характерний для електронної музики</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="sin(x + sin(3*x))">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="sin(x + sin(3*x))" data-add="sin(2*x+cos(x))|synth">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="exp">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--exp">Експоненціальна</span>
+                                <h3>Затухання</h3>
+                                <div class="function">exp(-x/10)*sin(x)</div>
+                                <div class="example-graph" data-function="exp(-x/10)*sin(x)"></div>
+                                <p>Поступове затухання — як відлуння або реверб</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="exp(-x/10)*sin(x)">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="exp(-x/10)*sin(x)" data-add="cos(x)*exp(-x/15)|flute">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="exp">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--exp">Експоненціальна</span>
+                                <h3>Наростання</h3>
+                                <div class="function">sin(x) * (1 - exp(-x/5))</div>
+                                <div class="example-graph" data-function="sin(x) * (1 - exp(-x/5))"></div>
+                                <p>Повільне наростання гучності — атака звуку</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="sin(x) * (1 - exp(-x/5))">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="sin(x) * (1 - exp(-x/5))" data-add="cos(x)*(1-exp(-x/5))|bass">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="exp">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--exp">Експоненціальна</span>
+                                <h3>Швидке затухання</h3>
+                                <div class="function">exp(-x/3)*cos(2*x)</div>
+                                <div class="example-graph" data-function="exp(-x/3)*cos(2*x)"></div>
+                                <p>Різке затухання з вищою частотою — удар по струні</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="exp(-x/3)*cos(2*x)">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="exp(-x/3)*cos(2*x)" data-add="sin(3*x)*exp(-x/5)|synth">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="poly">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--poly">Поліноміальна</span>
+                                <h3>Парабола</h3>
+                                <div class="function">x*x/50</div>
+                                <div class="example-graph" data-function="x*x/50"></div>
+                                <p>Квадратична функція — рівномірне зростання висоти</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="x*x/50">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="x*x/50" data-add="sin(x)|flute">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="poly">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--poly">Поліноміальна</span>
+                                <h3>Кубічна</h3>
+                                <div class="function">x*x*x/500</div>
+                                <div class="example-graph" data-function="x*x*x/500"></div>
+                                <p>Кубічна функція — нелінійна зміна темпу</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="x*x*x/500">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="x*x*x/500" data-add="cos(x)|synth">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
+                        <div class="example-card" data-category="poly">
+                            <div class="example-card-top">
+                                <span class="example-tag example-tag--poly">Поліноміальна</span>
+                                <h3>Абсолютне значення</h3>
+                                <div class="function">abs(sin(x))</div>
+                                <div class="example-graph" data-function="abs(sin(x))"></div>
+                                <p>Випрямлена синусоїда — подвоєна частота пульсацій</p>
+                            </div>
+                            <div class="example-card-actions">
+                                <button class="try-example" data-function="abs(sin(x))">▶ Спробувати</button>
+                                <button class="try-example-poly" data-function="abs(sin(x))" data-add="sin(2*x)|bass">+ З додатковим інструментом</button>
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>
 
             <div class="page" id="info-page" style="display: none;">
-                <div class="about-container">
-                    <div class="info-section">
-                        <div class="info-icon">🎵</div>
-                        <div>
-                            <h2>Про Graph to Music</h2>
-                            <p><strong>Graph to Music</strong> — інструмент, що дозволяє перетворювати математичні функції на музику та навпаки досліджувати музику у вигляді графічного представлення.</p>
+                <div class="info-page-wrapper">
+
+                    <div class="info-page-hero">
+                        <h2>Graph to Music</h2>
+                        <p>Інструмент для дослідження математичних функцій через звук — як форма графіка впливає на характер мелодії</p>
+                    </div>
+
+                    <div class="info-cards-grid">
+
+                        <div class="info-big-card">
+                            <div class="info-big-card-icon">𝑓(𝑥)</div>
+                            <h3>Що це таке</h3>
+                            <p>Graph to Music — це застосунок, що перетворює математичні функції на музику. Предмет дослідження — <strong>математика</strong>: як форма, амплітуда, частота і характер функції визначають звукову структуру мелодії.</p>
+                            <p>Синусоїда звучить плавно. Кубічна функція — з наростанням. FM-модуляція — як електронний синтезатор. Кожна функція має свій унікальний музичний «портрет».</p>
+                        </div>
+
+                        <div class="info-big-card">
+                            <div class="info-big-card-icon">🔁</div>
+                            <h3>Два режими</h3>
+                            <div class="info-mode-row">
+                                <div class="info-mode">
+                                    <span class="info-mode-badge">f(x) → 🎵</span>
+                                    <strong>Функція → Музика</strong>
+                                    <p>Введіть математичну функцію — отримайте мелодію. Доступні жанри (Pop, Jazz, EDM) і чотири інструменти.</p>
+                                </div>
+                                <div class="info-mode">
+                                    <span class="info-mode-badge">🎵 → f(x)</span>
+                                    <strong>Музика → Графік</strong>
+                                    <p>Завантажте аудіофайл — отримайте графік сигналу з математичним аналізом та апроксимацією.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="info-steps">
+                        <h3>Як працює алгоритм</h3>
+                        <div class="info-steps-grid">
+                            <div class="info-step">
+                                <div class="info-step-num">1</div>
+                                <strong>Дискретизація</strong>
+                                <p>Функція обчислюється в N рівновіддалених точках на заданому інтервалі [x min, x max]</p>
+                            </div>
+                            <div class="info-step">
+                                <div class="info-step-num">2</div>
+                                <strong>Нормалізація</strong>
+                                <p>Значення функції нормалізуються до діапазону нот MIDI [0, 127] з урахуванням мінімуму та максимуму</p>
+                            </div>
+                            <div class="info-step">
+                                <div class="info-step-num">3</div>
+                                <strong>Жанрове перетворення</strong>
+                                <p>Pop — квантування до діатонічної гами. Jazz — swing і простір mod 12. EDM — ритмічні акценти</p>
+                            </div>
+                            <div class="info-step">
+                                <div class="info-step-num">4</div>
+                                <strong>Синтез звуку</strong>
+                                <p>Кожна точка стає нотою з висотою, гучністю та тривалістю. Інструмент визначає хвильову форму та огинаючу</p>
+                            </div>
                         </div>
                     </div>
-                    <hr class="info-divider" />
-                    <div class="info-section">
-                        <div class="info-icon">⚙️</div>
-                        <div>
-                            <h2>Як це працює</h2>
-                            <p>Алгоритм дискретизує функцію, нормалізує її значення і переводить їх у параметри звуку. Додатково застосовуються жанрові перетворення та темброві моделі інструментів.</p>
-                            <p>У зворотному режимі система аналізує аудіофайл, виділяє хвильову форму та будує наближений графік сигналу.</p>
+
+                    <div class="info-features">
+                        <h3>Можливості</h3>
+                        <div class="info-features-grid">
+                            <div class="info-feature-card">
+                                <span>🎹</span>
+                                <strong>4 інструменти</strong>
+                                <p>Piano, Synth, Bass, Flute — кожен з унікальною хвильовою формою</p>
+                            </div>
+                            <div class="info-feature-card">
+                                <span>🎼</span>
+                                <strong>4 жанри</strong>
+                                <p>Original, Pop, Jazz, EDM — різні математичні перетворення нотного ряду</p>
+                            </div>
+                            <div class="info-feature-card">
+                                <span>🎸</span>
+                                <strong>Поліфонія</strong>
+                                <p>Кілька функцій одночасно на різних інструментах — як акорди</p>
+                            </div>
+                            <div class="info-feature-card">
+                                <span>📊</span>
+                                <strong>Аналіз сигналу</strong>
+                                <p>Похідні, екстремуми, апроксимація рядом Фур'є для завантаженого аудіо</p>
+                            </div>
+                            <div class="info-feature-card">
+                                <span>🔬</span>
+                                <strong>Music → Graph</strong>
+                                <p>Зворотний модуль: аудіофайл → графік → математична апроксимація</p>
+                            </div>
+                            <div class="info-feature-card">
+                                <span>💾</span>
+                                <strong>Збереження</strong>
+                                <p>Зберігайте композиції у особистому кабінеті для подальшого використання</p>
+                            </div>
                         </div>
                     </div>
+
+                    <div class="info-math-block">
+                        <div class="info-math-left">
+                            <h3>Математична основа</h3>
+                            <p>Центральна ідея проєкту — <strong>дискретне перетворення функції у часовий ряд</strong>. Кожне значення f(xᵢ) інтерпретується як висота ноти nᵢ за формулою:</p>
+                            <div class="info-formula">nᵢ = round( (f(xᵢ) − f_min) / (f_max − f_min) · 87 ) + 21</div>
+                            <p>де 21 — мінімальна нота MIDI (A0), 87 — діапазон фортепіано.</p>
+                            <p>Для зворотного модуля використовується <strong>дискретне перетворення Фур'є (DFT)</strong> для виділення домінантних гармонік сигналу та апроксимація методом найменших квадратів.</p>
+                        </div>
+                        <div class="info-math-right">
+                            <div class="info-formula-card">
+                                <div class="info-formula-title">Ряд Фур'є (апроксимація)</div>
+                                <div class="info-formula">f(x) ≈ Σ aₖ·cos(2πkx + φₖ)</div>
+                            </div>
+                            <div class="info-formula-card">
+                                <div class="info-formula-title">Перша похідна (чисельна)</div>
+                                <div class="info-formula">f′(xᵢ) ≈ (f(xᵢ₊₁) − f(xᵢ)) / (xᵢ₊₁ − xᵢ)</div>
+                            </div>
+                            <div class="info-formula-card">
+                                <div class="info-formula-title">RMSE апроксимації</div>
+                                <div class="info-formula">RMSE = √( Σ(f(xᵢ) − f̂(xᵢ))² / n )</div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
 
-            <div class="page" id="instructions-page" style="display: none;">
-                <div class="instructions-container">
-                    <h2>Інструкції з використання</h2>
-                    <ol>
-                        <li>Введіть математичну функцію у поле вводу.</li>
-                        <li>Оберіть жанр та інструмент.</li>
-                        <li>Налаштуйте інтервал, кількість точок і тривалість ноти.</li>
-                        <li>Натисніть «Генерувати» та прослухайте результат.</li>
-                        <li>Для зворотного режиму оберіть аудіофайл і натисніть «Побудувати графік з музики».</li>
-                    </ol>
-                    <div class="note"><strong>Примітка:</strong> модуль Music → Graph зараз є прототипом для дипломної роботи та підходить для демонстрації зворотного аналізу аудіосигналу.</div>
+            
+
+            <div class="page" id="instructions-page" style="display:none;">
+                <div class="instructions-page-wrapper">
+
+                    <div class="instructions-page-hero">
+                        <div class="eyebrow">Інструкція</div>
+                        <h2>Як користуватись Graph to Music</h2>
+                        <p>
+                            Покроковий гід по генерації музики з математичних функцій
+                            та аналізу аудіосигналів.
+                        </p>
+                    </div>
+
+                    <div class="instructions-quick-grid">
+
+                        <div class="instruction-card">
+                            <div class="instruction-icon">𝑓(𝑥)</div>
+                            <strong>Введіть функцію</strong>
+                            <p>Наприклад: sin(x), x² або sin(x)+cos(2x)</p>
+                        </div>
+
+                        <div class="instruction-card">
+                            <div class="instruction-icon">🎼</div>
+                            <strong>Оберіть жанр</strong>
+                            <p>Pop, Jazz, EDM або Original</p>
+                        </div>
+
+                        <div class="instruction-card">
+                            <div class="instruction-icon">🎹</div>
+                            <strong>Оберіть інструмент</strong>
+                            <p>Piano, Bass, Synth або Flute</p>
+                        </div>
+
+                        <div class="instruction-card">
+                            <div class="instruction-icon">▶</div>
+                            <strong>Згенеруйте музику</strong>
+                            <p>Система побудує графік та створить мелодію</p>
+                        </div>
+
+                    </div>
+
+                    <div class="instructions-steps-block">
+
+                        <h3>Що відбувається всередині</h3>
+
+                        <div class="instructions-steps-grid">
+
+                            <div class="instruction-step">
+                                <div class="instruction-step-num">1</div>
+                                <strong>Парсинг функції</strong>
+                                <p>Expression parser аналізує математичний вираз</p>
+                            </div>
+
+                            <div class="instruction-step">
+                                <div class="instruction-step-num">2</div>
+                                <strong>Обчислення точок</strong>
+                                <p>Функція дискретизується у часовий ряд</p>
+                            </div>
+
+                            <div class="instruction-step">
+                                <div class="instruction-step-num">3</div>
+                                <strong>MIDI Mapping</strong>
+                                <p>Значення перетворюються у музичні ноти</p>
+                            </div>
+
+                            <div class="instruction-step">
+                                <div class="instruction-step-num">4</div>
+                                <strong>Синтез аудіо</strong>
+                                <p>Web Audio API генерує звук у реальному часі</p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="instructions-tips">
+
+                        <h3>Корисні функції</h3>
+
+                        <div class="instructions-tips-grid">
+
+                            <div class="tip-card">
+                                <span>🌊</span>
+                                <strong>sin(x)</strong>
+                                <p>Плавна класична мелодія</p>
+                            </div>
+
+                            <div class="tip-card">
+                                <span>⚡</span>
+                                <strong>tan(x)</strong>
+                                <p>Різкі акценти та нестабільний ритм</p>
+                            </div>
+
+                            <div class="tip-card">
+                                <span>🎛</span>
+                                <strong>sin(x)+sin(3x)</strong>
+                                <p>Багаті гармоніки та складніше звучання</p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
                 </div>
             </div>
 
