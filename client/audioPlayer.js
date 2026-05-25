@@ -508,18 +508,33 @@ function formatTime(seconds) {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
-function saveComposition() {
+async function saveComposition() {
     if (!audioData?.notes?.length) {
         alert('Немає даних для збереження.');
         return;
     }
-    const blob = new Blob([JSON.stringify(audioData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'composition.json';
-    a.click();
-    URL.revokeObjectURL(url);
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+        alert('Необхідно увійти в систему, щоб зберегти композицію');
+        return;
+    }
+
+    const title = prompt('Введіть назву композиції:', 'Моя композиція') || 'Без назви';
+
+    const compositionData = {
+        title,
+        function: audioData.sourceFunction,
+        data: audioData
+    };
+
+    const result = await window.api.saveCompositionToServer(compositionData);
+
+    if (result.success) {
+        alert('Композицію успішно збережено!');
+    } else {
+        alert('Помилка збереження: ' + result.message);
+    }
 }
 
 function processAudioFromFunction(functionData, options = {}) {
@@ -584,9 +599,8 @@ function initAudioPlayer() {
         stopMusic();
     });
 
-    document.querySelector('.btn-save')?.addEventListener('click', () => {
-        saveComposition();
-    });
+    document.querySelector('.btn-save')?.addEventListener('click', async () => {
+        await saveComposition();});
 
     ensureAudioContext();
 }

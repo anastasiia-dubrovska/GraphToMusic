@@ -9,78 +9,7 @@
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/midi.js/0.3.1/midi.min.js"></script>
 </head>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
 
-    // Фільтр
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const filter = btn.dataset.filter;
-            document.querySelectorAll('.example-card').forEach(card => {
-                card.classList.toggle('hidden', filter !== 'all' && card.dataset.category !== filter);
-            });
-        });
-    });
-
-    function goToGenerator(fn, genre, instrument, addFn, addInstr) {
-        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-        document.getElementById('generator-page').style.display = 'block';
-        document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-        document.getElementById('nav-generator').classList.add('active');
-
-        document.querySelector('.function-input').value = fn;
-        const genreSelect = document.getElementById('genreSelect');
-        const instrSelect = document.getElementById('instrumentSelect');
-        if (genreSelect) genreSelect.value = genre;
-        if (instrSelect) instrSelect.value = instrument;
-
-        if (addFn) {
-            setTimeout(() => {
-                // Клікаємо "Додати ще одну функцію"
-                document.getElementById('addInstrumentBtn')?.click();
-                // Знаходимо останню додану картку і заповнюємо
-                setTimeout(() => {
-                    const cards = document.querySelectorAll('.instrument-card');
-                    const last = cards[cards.length - 1];
-                    if (last) {
-                        const fnInput = last.querySelector('input[type="text"], input:not([type="range"])');
-                        const instrSel = last.querySelector('select');
-                        if (fnInput) fnInput.value = addFn;
-                        if (instrSel) instrSel.value = addInstr;
-                    }
-                    document.getElementById('applyInstrumentsBtn')?.click();
-                }, 100);
-            }, 200);
-        }
-
-        setTimeout(() => document.querySelector('.btn-generate')?.click(), 400);
-    }
-
-    // Кнопка "Спробувати"
-    document.querySelectorAll('.try-example').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const fn = btn.dataset.function;
-            const genre = document.getElementById('exampleGenre')?.value || 'original';
-            const instrument = document.getElementById('exampleInstrument')?.value || 'piano';
-            goToGenerator(fn, genre, instrument, null, null);
-        });
-    });
-
-    // Кнопка "З додатковим інструментом"
-    document.querySelectorAll('.try-example-poly').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const fn = btn.dataset.function;
-            const [addFn, addInstr] = (btn.dataset.add || '').split('|');
-            const genre = document.getElementById('exampleGenre')?.value || 'original';
-            const instrument = document.getElementById('exampleInstrument')?.value || 'piano';
-            goToGenerator(fn, genre, instrument, addFn, addInstr || 'synth');
-        });
-    });
-
-});
-</script>
 <body>
     <header>
         <div class="container">
@@ -95,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <a href="#" id="nav-info">Інформація</a>
         <a href="#" id="nav-instructions">Інструкції</a>
         <a href="#" id="nav-login">Увійти</a>
-        <a href="#" id="nav-logout" style="display:none;">Вихід</a>
+        <span id="nav-logout" style="display:none;"></span>
     </nav>
 
     <main>
@@ -104,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="generator-container modern-shell">
                     <div class="hero-panel">
                         <div class="hero-copy">
-                            <div class="eyebrow">Diploma upgrade</div>
                             <h2>Функція → музика → зворотний графік</h2>
                             <p>Оновлена версія проєкту з жанрами, інструментами, сучасним інтерфейсом і прототипом модуля Music → Graph.</p>
                         </div>
@@ -820,6 +748,185 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             </div>
+
+                        <!-- Профіль -->
+            <div class="page" id="profile-page" style="display:none;">
+                <div class="profile-wrapper">
+                    <div class="profile-hero">
+                        <div class="profile-avatar-big" id="profile-avatar-big">N</div>
+                        <div>
+                            <h2 id="profile-email-title">nastja@gmail.com</h2>
+                            <p class="profile-joined" id="profile-joined">Учасник з ...</p>
+                        </div>
+                    </div>
+
+                    <div class="profile-grid">
+                        <div class="profile-card">
+                            <h3>Особисті дані</h3>
+                            <div class="profile-field">
+                                <label>Ім'я</label>
+                                <input type="text" id="profile-name" placeholder="Введіть ім'я">
+                            </div>
+                            <div class="profile-field">
+                                <label>Email</label>
+                                <input type="email" id="profile-email" disabled>
+                            </div>
+                            <button class="btn-profile-save" id="btn-save-profile">Зберегти зміни</button>
+                        </div>
+
+                        <div class="profile-card">
+                            <h3>Зміна паролю</h3>
+                            <div class="profile-field">
+                                <label>Поточний пароль</label>
+                                <input type="password" id="profile-old-password" placeholder="••••••••">
+                            </div>
+                            <div class="profile-field">
+                                <label>Новий пароль</label>
+                                <input type="password" id="profile-new-password" placeholder="••••••••">
+                            </div>
+                            <div class="profile-field">
+                                <label>Підтвердити пароль</label>
+                                <input type="password" id="profile-confirm-password" placeholder="••••••••">
+                            </div>
+                            <button class="btn-profile-save" id="btn-change-password">Змінити пароль</button>
+                            <div class="profile-msg" id="password-msg"></div>
+                        </div>
+
+                        <div class="profile-card profile-card--full">
+                            <h3>Залишити відгук</h3>
+                            <div class="profile-field">
+                                <label>Оцінка</label>
+                                <div class="profile-stars" id="profile-stars">
+                                    <span class="star" data-value="1">★</span>
+                                    <span class="star" data-value="2">★</span>
+                                    <span class="star" data-value="3">★</span>
+                                    <span class="star" data-value="4">★</span>
+                                    <span class="star" data-value="5">★</span>
+                                </div>
+                            </div>
+                            <div class="profile-field">
+                                <label>Коментар</label>
+                                <textarea id="profile-feedback" placeholder="Напишіть що думаєте про застосунок..." rows="3"></textarea>
+                            </div>
+                            <button class="btn-profile-save" id="btn-send-feedback">Надіслати відгук</button>
+                            <div class="profile-msg" id="feedback-msg"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Налаштування -->
+            <div class="page" id="settings-page" style="display:none;">
+                <div class="settings-wrapper">
+                    <div class="examples-hero">
+                        <div class="eyebrow">Персоналізація</div>
+                        <h2>Налаштування</h2>
+                        <p>Налаштуйте застосунок під себе</p>
+                    </div>
+
+                    <div class="settings-grid">
+                        <div class="settings-card">
+                            <h3>🎨 Зовнішній вигляд</h3>
+                            <div class="settings-field">
+                                <label>Тема</label>
+                                <div class="settings-theme-btns">
+                                    <button class="theme-btn active" data-theme="light">☀️ Світла</button>
+                                    <button class="theme-btn" data-theme="dark">🌙 Темна</button>
+                                    <button class="theme-btn" data-theme="system">💻 Системна</button>
+                                </div>
+                            </div>
+                            <div class="settings-field">
+                                <label>Акцентний колір</label>
+                                <div class="settings-colors">
+                                    <span class="color-dot active" data-color="#2563eb" style="background:#2563eb"></span>
+                                    <span class="color-dot" data-color="#9333ea" style="background:#9333ea"></span>
+                                    <span class="color-dot" data-color="#16a34a" style="background:#16a34a"></span>
+                                    <span class="color-dot" data-color="#ea580c" style="background:#ea580c"></span>
+                                    <span class="color-dot" data-color="#dc2626" style="background:#dc2626"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3>🌐 Мова та регіон</h3>
+                            <div class="settings-field">
+                                <label>Мова інтерфейсу</label>
+                                <select class="genre-select" id="settings-language">
+                                    <option value="uk">🇺🇦 Українська</option>
+                                    <option value="en">🇬🇧 English</option>
+                                    <option value="pl">🇵🇱 Polski</option>
+                                </select>
+                            </div>
+                            <div class="settings-field">
+                                <label>Формат дати</label>
+                                <select class="genre-select" id="settings-date-format">
+                                    <option value="dd.mm.yyyy">ДД.ММ.РРРР</option>
+                                    <option value="mm/dd/yyyy">ММ/ДД/РРРР</option>
+                                    <option value="yyyy-mm-dd">РРРР-ММ-ДД</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3>🎵 Звук за замовчуванням</h3>
+                            <div class="settings-field">
+                                <label>Жанр</label>
+                                <select class="genre-select" id="settings-genre">
+                                    <option value="original">Original</option>
+                                    <option value="pop">Pop</option>
+                                    <option value="jazz">Jazz</option>
+                                    <option value="edm">EDM</option>
+                                </select>
+                            </div>
+                            <div class="settings-field">
+                                <label>Інструмент</label>
+                                <select class="genre-select" id="settings-instrument">
+                                    <option value="piano">Piano</option>
+                                    <option value="synth">Synth</option>
+                                    <option value="bass">Bass</option>
+                                    <option value="flute">Flute</option>
+                                </select>
+                            </div>
+                            <div class="settings-field">
+                                <label>Тривалість ноти за замовчуванням</label>
+                                <input type="range" min="0.05" max="1" step="0.05" value="0.2" id="settings-note-duration">
+                                <span id="settings-note-duration-val">0.2s</span>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3>🔔 Сповіщення</h3>
+                            <div class="settings-toggle-row">
+                                <div>
+                                    <strong>Сповіщення про збереження</strong>
+                                    <p>Показувати підтвердження при збереженні композиції</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="settings-save-notifications" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="settings-toggle-row">
+                                <div>
+                                    <strong>Автозбереження</strong>
+                                    <p>Автоматично зберігати останню композицію</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="settings-autosave">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="settings-save-row">
+                        <button class="btn-generate" id="btn-save-settings">Зберегти налаштування</button>
+                        <button class="btn-secondary" id="btn-reset-settings">Скинути до стандартних</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
@@ -829,7 +936,10 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
     </footer>
 
-    <script src="app.js"></script>
+
+
+
+    <script type="module" src="./app.js"></script>
     <script src="api.js"></script>
     <script src="visualization.js"></script>
     <script src="genreEngine.js"></script>
@@ -841,5 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <script src="audioPlayer.js"></script>
     <script src="navigation.js"></script>
     <script src="audioEffects.js"></script>
+
+
 </body>
 </html>
