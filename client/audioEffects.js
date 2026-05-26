@@ -190,62 +190,66 @@ function playMusicWithEffects() {
         console.error('Немає аудіоданих для відтворення');
         return;
     }
-    
+
     if (isPlaying) {
         stopMusic();
     }
-    
+
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
-    
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
-    
+
     isPlaying = true;
     document.querySelector('.music-player').classList.add('playing');
-    document.querySelector('.music-player span').textContent = 'Зараз грає...';
-    
-    let startTime = audioContext.currentTime;
-    let elapsed = 0;
-    let noteDuration = currentSettings.noteDuration || NOTE_DURATION;
-    
-    if (playbackPosition > 0) {
-        currentNote = Math.floor(playbackPosition / noteDuration);
-        elapsed = playbackPosition - (currentNote * noteDuration);
-        startTime -= elapsed;
-    }
-    
-    playbackStartTime = audioContext.currentTime - playbackPosition;
-    
-    const notesToPlay = audioData.notes.slice(currentNote);
-    
-    if (effectSettings.useHarmony) {
-        playWithHarmony(notesToPlay, startTime + elapsed);
-    } else if (effectSettings.useArpeggiator) {
-        playWithArpeggiator(notesToPlay, startTime + elapsed);
-    } else {
-        for (let i = 0; i < notesToPlay.length; i++) {
-            const note = notesToPlay[i];
-            const noteTime = startTime + (i * noteDuration) + elapsed;
-            
-            const vibratoOptions = note.vibratoDepth ? 
-                { vibratoDepth: note.vibratoDepth, vibratoRate: note.vibratoRate } : null;
-            
-            playNote(note.frequency, noteDuration, noteTime, note.amplitude, { vibrato: vibratoOptions });
-        }
-    }
-    
-    playbackInterval = setInterval(updatePlaybackProgress, 100);
-    
-    setTimeout(() => {
-        if (isPlaying) {
-            stopMusic();
-        }
-    }, (notesToPlay.length * noteDuration * 1000) + 1000); 
-}
+    const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+    if (playerLabel) playerLabel.textContent = 'Зараз грає...';
 
+    const doPlay = () => {
+        playbackStartTime = audioContext.currentTime;
+        playbackPosition = 0;
+        currentNote = 0;
+
+        if (audioData.isMultiInstrument && audioData.tracks?.length) {
+            const startTime = audioContext.currentTime + 0.05;
+            playMultiInstrumentMusic(startTime);
+            clearInterval(playbackInterval);
+            playbackInterval = setInterval(updatePlaybackProgress, 100);
+            return;
+        }
+
+
+        const startTime = audioContext.currentTime + 0.05;
+        const noteDuration = currentSettings.noteDuration || NOTE_DURATION;
+        const notesToPlay = audioData.notes;
+
+        if (effectSettings.useHarmony) {
+            playWithHarmony(notesToPlay, startTime);
+        } else if (effectSettings.useArpeggiator) {
+            playWithArpeggiator(notesToPlay, startTime);
+        } else {
+            for (let i = 0; i < notesToPlay.length; i++) {
+                const note = notesToPlay[i];
+                const noteTime = startTime + (i * noteDuration);
+                const vibratoOptions = note.vibratoDepth ?
+                    { vibratoDepth: note.vibratoDepth, vibratoRate: note.vibratoRate } : null;
+                playNote(note.frequency, noteDuration, noteTime, note.amplitude, { vibrato: vibratoOptions });
+            }
+        }
+
+        clearInterval(playbackInterval);
+        playbackInterval = setInterval(updatePlaybackProgress, 100);
+
+        setTimeout(() => {
+            if (isPlaying) stopMusic();
+        }, (notesToPlay.length * noteDuration * 1000) + 1000);
+    };
+
+    if (audioContext.state === 'suspended') {
+        audioContext.resume().then(doPlay);
+    } else {
+        doPlay();
+    }
+}
 
 function updateEffects(newEffects) {
 

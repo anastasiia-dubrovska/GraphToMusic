@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     });
 
-        // Заповнення профілю
+
     function fillProfilePage() {
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         const email = user.email || '';
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (joined) joined.textContent = `Учасник з ${new Date().toLocaleDateString('uk-UA')}`;
     }
 
-    // Зірочки
+
     let selectedRating = 0;
     document.querySelectorAll('.star').forEach(star => {
         star.addEventListener('mouseover', () => {
@@ -159,29 +159,92 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Кнопка відгуку
-    document.getElementById('btn-send-feedback')?.addEventListener('click', () => {
-        const msg = document.getElementById('feedback-msg');
+
+    document.getElementById('btn-send-feedback')?.addEventListener('click', async () => {
+        const msg  = document.getElementById('feedback-msg');
         const text = document.getElementById('profile-feedback')?.value.trim();
-        if (!selectedRating) { msg.textContent = 'Оберіть оцінку'; msg.style.color = '#dc2626'; return; }
-        msg.textContent = '✓ Дякуємо за відгук!';
-        msg.style.color = '#16a34a';
-        document.getElementById('profile-feedback').value = '';
-        selectedRating = 0;
-        document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+
+        if (!selectedRating) {
+            msg.textContent = 'Оберіть оцінку'; msg.style.color = '#dc2626'; return;
+        }
+
+        const btn = document.getElementById('btn-send-feedback');
+        btn.textContent = 'Надсилання...';
+        btn.disabled = true;
+
+        const result = await window.api.sendFeedback(selectedRating, text);
+
+        btn.textContent = 'Надіслати відгук';
+        btn.disabled = false;
+
+        if (result.success) {
+            msg.textContent = '✓ Дякуємо за відгук!'; msg.style.color = '#16a34a';
+            document.getElementById('profile-feedback').value = '';
+            selectedRating = 0;
+            document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+        } else {
+            msg.textContent = result.message || 'Помилка'; msg.style.color = '#dc2626';
+        }
     });
 
-    // Зміна паролю
-    document.getElementById('btn-change-password')?.addEventListener('click', () => {
+
+    document.getElementById('btn-change-password')?.addEventListener('click', async () => {
         const msg     = document.getElementById('password-msg');
         const oldPass = document.getElementById('profile-old-password')?.value;
         const newPass = document.getElementById('profile-new-password')?.value;
         const confirm = document.getElementById('profile-confirm-password')?.value;
-        if (!oldPass || !newPass || !confirm) { msg.textContent = 'Заповніть всі поля'; msg.style.color = '#dc2626'; return; }
-        if (newPass !== confirm) { msg.textContent = 'Паролі не співпадають'; msg.style.color = '#dc2626'; return; }
-        msg.textContent = '✓ Пароль змінено';
-        msg.style.color = '#16a34a';
+
+        if (!oldPass || !newPass || !confirm) {
+            msg.textContent = 'Заповніть всі поля'; msg.style.color = '#dc2626'; return;
+        }
+        if (newPass !== confirm) {
+            msg.textContent = 'Паролі не співпадають'; msg.style.color = '#dc2626'; return;
+        }
+        if (newPass.length < 6) {
+            msg.textContent = 'Пароль має бути мінімум 6 символів'; msg.style.color = '#dc2626'; return;
+        }
+
+        const btn = document.getElementById('btn-change-password');
+        btn.textContent = 'Збереження...';
+        btn.disabled = true;
+
+        const result = await window.api.changePassword(oldPass, newPass);
+
+        btn.textContent = 'Змінити пароль';
+        btn.disabled = false;
+
+        if (result.success) {
+            msg.textContent = '✓ Пароль змінено'; msg.style.color = '#16a34a';
+            document.getElementById('profile-old-password').value = '';
+            document.getElementById('profile-new-password').value = '';
+            document.getElementById('profile-confirm-password').value = '';
+        } else {
+            msg.textContent = result.message || 'Помилка'; msg.style.color = '#dc2626';
+        }
     });
+    document.getElementById('btn-save-profile')?.addEventListener('click', async () => {
+        const name = document.getElementById('profile-name')?.value.trim();
+        const msgEl = document.getElementById('profile-save-msg');
+
+        const btn = document.getElementById('btn-save-profile');
+        btn.textContent = 'Збереження...';
+        btn.disabled = true;
+
+        const result = await window.api.updateProfile(name);
+
+        btn.textContent = 'Зберегти зміни';
+        btn.disabled = false;
+
+        if (result.success) {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            user.name = name;
+            localStorage.setItem('user', JSON.stringify(user));
+            if (msgEl) { msgEl.textContent = '✓ Збережено'; msgEl.style.color = '#16a34a'; }
+        } else {
+            if (msgEl) { msgEl.textContent = result.message; msgEl.style.color = '#dc2626'; }
+        }
+    });
+
 
 
 

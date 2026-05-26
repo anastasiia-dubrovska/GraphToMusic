@@ -315,7 +315,6 @@ document.querySelector('.user-compositions').addEventListener('click', async (e)
     const playBtn = e.target.closest('.btn-play-composition');
     const deleteBtn = e.target.closest('.btn-delete-composition');
 
-    // PLAY
     if (playBtn) {
         const functionStr = playBtn.dataset.function;
         const settingsStr = playBtn.dataset.settings;
@@ -358,7 +357,7 @@ document.querySelector('.user-compositions').addEventListener('click', async (e)
         document.querySelector('.btn-generate').click();
     }
 
-    // DELETE
+
     if (deleteBtn) {
         const id = deleteBtn.dataset.id;
 
@@ -373,6 +372,68 @@ document.querySelector('.user-compositions').addEventListener('click', async (e)
         }
     }
 });
+async function updateProfile(name) {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, message: 'Необхідно увійти в систему' };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ name })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Помилка оновлення');
+        return data;
+    } catch (error) {
+        return { success: false, message: 'Помилка зєднання з сервером' };
+    }
+}
+
+async function changePassword(oldPassword, newPassword) {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, message: 'Необхідно увійти в систему' };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ oldPassword, newPassword })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Помилка зміни паролю');
+        return data;
+    } catch (error) {
+        return { success: false, message: 'Помилка зєднання з сервером' };
+    }
+}
+
+async function sendFeedback(rating, comment) {
+    const token = localStorage.getItem('token');
+    if (!token) return { success: false, message: 'Необхідно увійти в систему' };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/feedback`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ rating, comment })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Помилка відправки відгуку');
+        return data;
+    } catch (error) {
+        return { success: false, message: 'Помилка зєднання з сервером' };
+    }
+}
 
 
 window.api = {
@@ -383,5 +444,8 @@ window.api = {
     saveCompositionToServer,
     loadUserCompositions,
     deleteComposition,
-    generateMusic
+    generateMusic,
+    updateProfile,      
+    changePassword,     
+    sendFeedback 
 };

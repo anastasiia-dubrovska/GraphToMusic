@@ -155,10 +155,15 @@ function generateMultiInstrumentAudioData(mainFunctionString, options) {
     instruments.forEach((inst, trackIndex) => {
         let compiledFunction;
 
+
+        const formulaToUse = (inst.functionExpression && inst.functionExpression.trim() !== '') 
+            ? inst.functionExpression 
+            : mainFunctionString;
+
         try {
-            compiledFunction = window.visualization.createFunction(inst.functionExpression);
+            compiledFunction = window.visualization.createFunction(formulaToUse);
         } catch (error) {
-            console.warn('Некоректна функція інструмента:', inst.functionExpression, error);
+            console.warn('Некоректна функція інструмента:', formulaToUse, error);
             return;
         }
 
@@ -181,51 +186,42 @@ function generateMultiInstrumentAudioData(mainFunctionString, options) {
             Number.isFinite(y) ? (y - yMin) / span : 0.5
         );
 
+        const trackOctave = parseInt(inst.octave, 10) || 0;
+        const trackDuration = parseFloat(inst.noteDuration) || parseFloat(noteDuration);
+        const trackVolume = inst.volume !== undefined && inst.volume !== null ? parseFloat(inst.volume) : 0.5;
+
         let notes = normalizedValues.map((norm, index) => ({
-            frequency: mapToFrequency(norm) * Math.pow(2, inst.octave || 0),
-            duration: inst.noteDuration || noteDuration,
-            amplitude: inst.volume ?? 0.5,
+            frequency: mapToFrequency(norm) * Math.pow(2, trackOctave),
+            duration: trackDuration,
+            amplitude: trackVolume,
             index,
             trackIndex,
             instrument: inst.type || instrument,
             instrumentName: inst.name || inst.type,
-            sourceFunction: inst.functionExpression
+            sourceFunction: formulaToUse
         }));
 
         if (useAmplitudeModulation) {
             const h = 0.001;
-
             const derivative = xValues.map(x => {
                 try {
                     return Math.abs((compiledFunction(x + h) - compiledFunction(x - h)) / (2 * h));
-                } catch {
-                    return 0;
-                }
+                } catch { return 0; }
             });
-
             const maxD = Math.max(...derivative, 1e-9);
-
             derivative.forEach((d, i) => {
-                notes[i].amplitude = Math.min(
-                    1,
-                    (inst.volume ?? 0.5) * (0.3 + 0.7 * (d / maxD))
-                );
+                notes[i].amplitude = Math.min(1, trackVolume * (0.3 + 0.7 * (d / maxD)));
             });
         }
 
         if (useVibrato) {
             const h = 0.001;
-
             const secondDerivative = xValues.map(x => {
                 try {
                     return (compiledFunction(x + h) - 2 * compiledFunction(x) + compiledFunction(x - h)) / (h * h);
-                } catch {
-                    return 0;
-                }
+                } catch { return 0; }
             });
-
             const maxS = Math.max(...secondDerivative.map(v => Math.abs(v)), 1e-9);
-
             secondDerivative.forEach((s, i) => {
                 const normalized = Math.abs(s) / maxS;
                 notes[i].vibratoDepth = normalized * 8;
@@ -240,7 +236,7 @@ function generateMultiInstrumentAudioData(mainFunctionString, options) {
         tracks.push({
             name: inst.name,
             type: inst.type,
-            functionExpression: inst.functionExpression,
+            functionExpression: formulaToUse,
             notes,
             yValues,
             normalizedValues
@@ -251,6 +247,13 @@ function generateMultiInstrumentAudioData(mainFunctionString, options) {
 
     if (!tracks.length) {
         throw new Error('Жоден інструмент не має коректної функції');
+    }
+
+    const trackCount = tracks.length;
+    if (trackCount > 1) {
+        allNotes.forEach(note => {
+            note.amplitude = note.amplitude / Math.sqrt(trackCount);
+        });
     }
 
     return {
@@ -281,7 +284,10 @@ function playMultiInstrumentMusic(startTime) {
 
         track.notes.forEach(note => {
             playGeneratedNote(note, timeCursor);
-            timeCursor += note.duration ?? currentSettings.noteDuration;
+            
+
+            const duration = parseFloat(note.duration || currentSettings.noteDuration || 0.2);
+            timeCursor += duration;
         });
 
         if (timeCursor > maxEndTime) {
@@ -323,7 +329,7 @@ function createInstrumentChain(ctx, preset, frequency, startTime, duration, ampl
         osc.type = waveform;
         osc.frequency.value = idx === 0 ? frequency : frequency * 2;
         osc.detune.value = idx === 0 ? 0 : (preset.detune || 0);
-        gain.gain.value = idx === 0 ? 0.75 : 0.18;
+        gain.gain.value = idx === 0 ? 0.6 : 0.15;
         osc.connect(gain);
         gain.connect(filter);
         osc.start(startTime);
@@ -409,48 +415,71 @@ function clearActiveNodes() {
 function playMusic() {
     if (!audioData?.notes?.length) return;
 
-    if (isPlaying) stopMusic();
-
     const ctx = ensureAudioContext();
-    if (ctx.state === 'suspended') ctx.resume();
 
-    isPlaying = true;
 
-    const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
-    if (playerLabel) playerLabel.textContent = 'Зараз грає...';
-
-    document.querySelector('.music-player')?.classList.add('playing');
-
-    let startTime = ctx.currentTime + 0.05;
-
-    playbackStartTime = ctx.currentTime - playbackPosition;
-
-    if (audioData.isMultiInstrument && audioData.tracks?.length) {
-        playMultiInstrumentMusic(startTime);
-    } else {
-        let timeCursor = startTime;
-
-        for (let i = currentNote; i < audioData.notes.length; i++) {
-            const note = audioData.notes[i];
-            playGeneratedNote(note, timeCursor);
-            timeCursor += note.duration ?? currentSettings.noteDuration;
-        }
-
-        setTimeout(() => {
-            if (isPlaying) stopMusic();
-        }, Math.max(0, (timeCursor - ctx.currentTime)) * 1000 + 150);
+    if (ctx.state === 'suspended' && playbackPosition > 0) {
+        ctx.resume().then(() => {
+            isPlaying = true;
+            const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+            if (playerLabel) playerLabel.textContent = 'Зараз грає...';
+            document.querySelector('.music-player')?.classList.add('playing');
+            playbackStartTime = ctx.currentTime - playbackPosition;
+            clearInterval(playbackInterval);
+            playbackInterval = setInterval(updatePlaybackProgress, 100);
+        });
+        return;
     }
 
-    clearInterval(playbackInterval);
-    playbackInterval = setInterval(updatePlaybackProgress, 100);
-}
+    if (isPlaying) {
+        stopMusic();
+    }
 
+    isPlaying = true;
+    const playerLabel = document.querySelector('.player-label') || document.querySelector('.music-player span');
+    if (playerLabel) playerLabel.textContent = 'Зараз грає...';
+    document.querySelector('.music-player')?.classList.add('playing');
+
+    const doPlay = () => {
+        const startTime = ctx.currentTime + 0.05;
+        playbackStartTime = ctx.currentTime;
+        playbackPosition = 0;
+        currentNote = 0;
+
+        if (audioData.isMultiInstrument && audioData.tracks?.length) {
+            playMultiInstrumentMusic(startTime);
+        } else {
+            let timeCursor = startTime;
+            for (let i = 0; i < audioData.notes.length; i++) {
+                const note = audioData.notes[i];
+                playGeneratedNote(note, timeCursor);
+                timeCursor += note.duration ?? currentSettings.noteDuration;
+            }
+        }
+
+        clearInterval(playbackInterval);
+        playbackInterval = setInterval(updatePlaybackProgress, 100);
+    };
+
+    if (ctx.state === 'suspended') {
+        ctx.resume().then(doPlay);
+    } else {
+        doPlay();
+    }
+}
 
 function updatePlaybackProgress() {
     if (!isPlaying || !audioData?.notes?.length || !audioContext) return;
 
     const currentTime = audioContext.currentTime - playbackStartTime;
-    const totalTime = audioData.notes.reduce((sum, note) => sum + (note.duration ?? currentSettings.noteDuration), 0);
+    
+
+    const totalTime = audioData.isMultiInstrument && audioData.tracks?.length
+    ? Math.max(...audioData.tracks.map(track => 
+        track.notes.reduce((sum, note) => sum + (note.duration ?? currentSettings.noteDuration), 0)
+      ))
+    : audioData.notes.reduce((sum, note) => sum + (note.duration ?? currentSettings.noteDuration), 0);
+        
     const progressPercent = Math.min(100, (currentTime / totalTime) * 100);
 
     const bar = document.querySelector('.progress-bar');
@@ -489,8 +518,9 @@ function stopMusic() {
     isPlaying = false;
     clearActiveNodes();
 
-    if (audioContext && audioContext.state !== 'closed') {
-        audioContext.close().then(() => { audioContext = null; });
+
+    if (audioContext && audioContext.state === 'running') {
+        audioContext.suspend();
     }
 
     document.querySelector('.music-player')?.classList.remove('playing');
@@ -576,31 +606,46 @@ function initAudioPlayer() {
         if (noteDurationValue) noteDurationValue.textContent = `${noteDurationInput.value}s`;
     });
 
-    document.querySelector('.music-player')?.addEventListener('click', () => {
+    document.querySelector('.music-player')?.addEventListener('click', (e) => {
+        if (e.target !== e.currentTarget && !e.target.classList.contains('player-label')) return;
+        
+
+        applySettings();
+        
         if (!audioData?.notes?.length) return;
         if (isPlaying) pauseMusic();
         else playMusic();
     });
 
-    document.querySelector('.btn-play')?.addEventListener('click', () => {
-        console.log('PLAY BUTTON CLICKED', audioData);
+    document.querySelector('.btn-play')?.addEventListener('click', (e) => {
+        e.stopPropagation(); 
+        
+
+        applySettings(); 
+
+        console.log('PLAY MULTI-TRACK AUDIO DATA:', audioData);
+
         if (!audioData?.notes?.length) {
-            alert('Спочатку згенеруйте композицію');
+            alert('Не вдалося згенерувати композицію. Перевірте введені дані.');
             return;
         }
         playMusic();
     });
 
-    document.querySelector('.btn-pause')?.addEventListener('click', () => {
+    document.querySelector('.btn-pause')?.addEventListener('click', (e) => {
+        e.stopPropagation();
         pauseMusic();
     });
 
-    document.querySelector('.btn-stop')?.addEventListener('click', () => {
+    document.querySelector('.btn-stop')?.addEventListener('click', (e) => {
+        e.stopPropagation();
         stopMusic();
     });
 
-    document.querySelector('.btn-save')?.addEventListener('click', async () => {
-        await saveComposition();});
+    document.querySelector('.btn-save')?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await saveComposition();
+    });
 
     ensureAudioContext();
 }

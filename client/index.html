@@ -34,7 +34,6 @@
                     <div class="hero-panel">
                         <div class="hero-copy">
                             <h2>Функція → музика → зворотний графік</h2>
-                            <p>Оновлена версія проєкту з жанрами, інструментами, сучасним інтерфейсом і прототипом модуля Music → Graph.</p>
                         </div>
                         <div class="hero-badge">Graph to Music</div>
                     </div>
@@ -749,7 +748,7 @@
                 </div>
             </div>
 
-                        <!-- Профіль -->
+                        
             <div class="page" id="profile-page" style="display:none;">
                 <div class="profile-wrapper">
                     <div class="profile-hero">
@@ -772,6 +771,7 @@
                                 <input type="email" id="profile-email" disabled>
                             </div>
                             <button class="btn-profile-save" id="btn-save-profile">Зберегти зміни</button>
+                            <div class="profile-msg" id="profile-save-msg"></div> 
                         </div>
 
                         <div class="profile-card">
@@ -815,7 +815,7 @@
                 </div>
             </div>
 
-            <!-- Налаштування -->
+            
             <div class="page" id="settings-page" style="display:none;">
                 <div class="settings-wrapper">
                     <div class="examples-hero">
@@ -844,26 +844,6 @@
                                     <span class="color-dot" data-color="#ea580c" style="background:#ea580c"></span>
                                     <span class="color-dot" data-color="#dc2626" style="background:#dc2626"></span>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="settings-card">
-                            <h3>🌐 Мова та регіон</h3>
-                            <div class="settings-field">
-                                <label>Мова інтерфейсу</label>
-                                <select class="genre-select" id="settings-language">
-                                    <option value="uk">🇺🇦 Українська</option>
-                                    <option value="en">🇬🇧 English</option>
-                                    <option value="pl">🇵🇱 Polski</option>
-                                </select>
-                            </div>
-                            <div class="settings-field">
-                                <label>Формат дати</label>
-                                <select class="genre-select" id="settings-date-format">
-                                    <option value="dd.mm.yyyy">ДД.ММ.РРРР</option>
-                                    <option value="mm/dd/yyyy">ММ/ДД/РРРР</option>
-                                    <option value="yyyy-mm-dd">РРРР-ММ-ДД</option>
-                                </select>
                             </div>
                         </div>
 
@@ -939,15 +919,12 @@
 
 
 
-    <script type="module" src="./app.js"></script>
     <script src="api.js"></script>
+    <script type="module" src="./app.js"></script>
     <script src="visualization.js"></script>
     <script src="genreEngine.js"></script>
-
     <script src="instrumentEngine.js"></script>
-
     <script src="musicToGraph.js"></script>
-    
     <script src="audioPlayer.js"></script>
     <script src="navigation.js"></script>
     <script src="audioEffects.js"></script>

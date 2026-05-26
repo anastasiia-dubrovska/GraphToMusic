@@ -156,6 +156,63 @@ function authenticateToken(req, res, next) {
     });
 
 
+    app.put('/api/auth/profile', authenticateToken, async (req, res) => {
+        const { name } = req.body;
+        try {
+            await usersCollection.updateOne(
+                { _id: new ObjectId(req.user.id) },
+                { $set: { name } }
+            );
+
+            const user = await usersCollection.findOne({ _id: new ObjectId(req.user.id) });
+            res.json({ success: true, user: { email: user.email, name: user.name } });
+        } catch (error) {
+            console.error('Update profile error:', error);
+            res.status(500).json({ success: false, message: 'Помилка сервера' });
+        }
+    });
+
+    app.put('/api/auth/change-password', authenticateToken, async (req, res) => {
+        const { oldPassword, newPassword } = req.body;
+        try {
+            const user = await usersCollection.findOne({ _id: new ObjectId(req.user.id) });
+            if (!user) return res.status(404).json({ success: false, message: 'Користувача не знайдено' });
+
+            const match = await bcrypt.compare(oldPassword, user.password);
+            if (!match) return res.status(400).json({ success: false, message: 'Невірний поточний пароль' });
+
+            const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+            await usersCollection.updateOne(
+                { _id: new ObjectId(req.user.id) },
+                { $set: { password: hashedPassword } }
+            );
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Change password error:', error);
+            res.status(500).json({ success: false, message: 'Помилка сервера' });
+        }
+    });
+
+
+    app.post('/api/feedback', authenticateToken, async (req, res) => {
+        const { rating, comment } = req.body;
+        try {
+            const feedbackCollection = db.collection('feedback');
+            await feedbackCollection.insertOne({
+                userId: req.user.id,
+                email: req.user.email,
+                rating,
+                comment,
+                createdAt: new Date()
+            });
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Feedback error:', error);
+            res.status(500).json({ success: false, message: 'Помилка сервера' });
+        }
+    });
+
+
     app.listen(3000, () => console.log('Server running on http://localhost:3000'));
 })();
 
