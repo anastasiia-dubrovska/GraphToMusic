@@ -3,6 +3,8 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const { MongoClient, ObjectId } = require('mongodb');
 const bcrypt = require('bcrypt');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 const app = express();
 
@@ -18,7 +20,7 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/index.html'));
 });
 
-const uri = 'mongodb://localhost:27017/';
+const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/';
 const client = new MongoClient(uri);
 const secret = 'your_jwt_secret';
 const saltRounds = 10;
@@ -81,7 +83,7 @@ function authenticateToken(req, res, next) {
             const match = await bcrypt.compare(password, user.password);
             if (!match) return res.json({ success: false, message: 'Невірний email або пароль' });
 
-            const token = jwt.sign({ email: user.email, id: user._id.toString() }, secret);
+            const token = jwt.sign({ email: user.email, id: user._id.toString() }, secret, { expiresIn: '365d' });
             res.json({ success: true, token, user: { email: user.email } });
         } catch (error) {
             console.error('Login error:', error);
@@ -208,6 +210,91 @@ function authenticateToken(req, res, next) {
             res.json({ success: true });
         } catch (error) {
             console.error('Feedback error:', error);
+            res.status(500).json({ success: false, message: 'Помилка сервера' });
+        }
+    });
+
+    const nodemailer = require('nodemailer');
+    const crypto = require('crypto');
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: 'graphtomusic.noreply@gmail.com',
+            pass: 'pryz wjhz bsfp lxfo'
+        }
+    });
+
+    // Тимчасове сховище токенів { token: { email, expires } }
+    const resetTokens = new Map();
+
+    // POST /api/auth/forgot-password
+    app.post('/api/auth/forgot-password', async (req, res) => {
+        const { email } = req.body;
+        try {
+            const user = await usersCollection.findOne({ email });
+            if (!user) {
+                // Не кажемо що юзера немає — з міркувань безпеки
+                return res.json({ success: true });
+            }
+
+            const token = crypto.randomBytes(32).toString('hex');
+            resetTokens.set(token, { email, expires: Date.now() + 1000 * 60 * 30 }); // 30 хвилин
+
+            const resetLink = `http://localhost:3000/reset-password.html?token=${token}`;
+
+            await transporter.sendMail({
+                from: '"GraphToMusic" <graphtomusic.noreply@gmail.com>',
+                to: email,
+                subject: 'Відновлення пароля — GraphToMusic',
+                html: `
+                    <p>Привіт!</p>
+                    <p>Ти отримав цей лист тому що запросив відновлення пароля.</p>
+                    <p><a href="${resetLink}">Натисни тут щоб скинути пароль</a></p>
+                    <p>Посилання діє 30 хвилин.</p>
+                    <p>Якщо ти не робив цього запиту — просто ігноруй цей лист.</p>
+                `
+            });
+
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Forgot password error:', error);
+            res.status(500).json({ success: false, message: 'Помилка сервера' });
+        }
+    });
+
+    // GET /api/auth/reset-password/:token — перевірка токена
+    app.get('/api/auth/reset-password/:token', (req, res) => {
+        const { token } = req.params;
+        const data = resetTokens.get(token);
+
+        if (!data || data.expires < Date.now()) {
+            return res.json({ success: false, message: 'Токен недійсний або прострочений' });
+        }
+
+        res.json({ success: true });
+    });
+
+    // POST /api/auth/reset-password — збереження нового пароля
+    app.post('/api/auth/reset-password', async (req, res) => {
+        const { token, newPassword } = req.body;
+        const data = resetTokens.get(token);
+
+        if (!data || data.expires < Date.now()) {
+            return res.json({ success: false, message: 'Токен недійсний або прострочений' });
+        }
+
+        try {
+            const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+            await usersCollection.updateOne(
+                { email: data.email },
+                { $set: { password: hashedPassword } }
+            );
+
+            resetTokens.delete(token);
+            res.json({ success: true });
+        } catch (error) {
+            console.error('Reset password error:', error);
             res.status(500).json({ success: false, message: 'Помилка сервера' });
         }
     });

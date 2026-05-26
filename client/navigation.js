@@ -336,6 +336,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault(); showPage('signin-page'); setActiveNav('nav-login');
     });
 
+    document.getElementById('to-forgot')?.addEventListener('click', e => {
+        e.preventDefault(); showPage('forgot-page'); setActiveNav('nav-login');
+    });
+    document.getElementById('to-signin-from-forgot')?.addEventListener('click', e => {
+        e.preventDefault(); showPage('signin-page'); setActiveNav('nav-login');
+    });
+
+    document.getElementById('forgot-form')?.addEventListener('submit', async e => {
+        e.preventDefault();
+        const email = document.getElementById('forgot-email').value.trim();
+        const msgEl = document.querySelector('#forgot-form .auth-message');
+
+        if (!email) { showMsg(msgEl, 'Введіть email', 'error'); return; }
+
+        const btn = e.target.querySelector('button[type="submit"]');
+        btn.textContent = 'Надсилання...';
+        btn.disabled = true;
+
+        const result = await fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        }).then(r => r.json());
+
+        btn.textContent = 'Надіслати';
+        btn.disabled = false;
+
+        showMsg(msgEl, 'Якщо такий email існує — лист надіслано', 'success');
+        document.getElementById('forgot-email').value = '';
+    });
+
 
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', () => {

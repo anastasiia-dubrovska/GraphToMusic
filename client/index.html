@@ -720,6 +720,7 @@
                         <input type="password" id="signin-password" placeholder="Пароль" required>
                         <button type="submit">Увійти</button>
                         <p>Не маєте облікового запису? <a href="#" id="to-signup">Зареєструватися</a></p>
+                        <p><a href="#" id="to-forgot">Забули пароль?</a></p>
                         <div class="auth-message"></div>
                     </form>
                 </div>
@@ -734,6 +735,18 @@
                         <input type="password" id="signup-confirm" placeholder="Повторити пароль" required>
                         <button type="submit">Зареєструватися</button>
                         <p>Вже маєте обліковий запис? <a href="#" id="to-signin">Увійти</a></p>
+                        <div class="auth-message"></div>
+                    </form>
+                </div>
+            </div>
+            <div class="page" id="forgot-page" style="display: none;">
+                <div class="form-container">
+                    <form class="auth-form" id="forgot-form">
+                        <h2 style="text-align: center;">Відновлення пароля</h2>
+                        <p style="text-align:center; color:#666;">Введіть email — надішлемо посилання для скидання пароля</p>
+                        <input type="email" id="forgot-email" placeholder="Email" required>
+                        <button type="submit">Надіслати</button>
+                        <p><a href="#" id="to-signin-from-forgot">← Назад до входу</a></p>
                         <div class="auth-message"></div>
                     </form>
                 </div>
