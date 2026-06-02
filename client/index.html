@@ -51,10 +51,10 @@
                             <div class="genre-block">
                                 <label for="genreSelect">Жанр музики</label>
                                 <select id="genreSelect" class="genre-select">
-                                    <option value="original">Original</option>
-                                    <option value="pop">Pop</option>
-                                    <option value="jazz">Jazz</option>
-                                    <option value="edm">EDM</option>
+                                    <option value="original">Оригінальний</option>
+                                    <option value="pop">Поп</option>
+                                    <option value="jazz">Джаз</option>
+                                    <option value="edm">Електронна танцювальна музика</option>
                                 </select>
                                 <div id="genreDescription" class="genre-description"></div>
                             </div>
@@ -63,15 +63,15 @@
                                 <label for="instrumentSelect">Інструмент / тембр</label>
                                 <select id="instrumentSelect" class="genre-select"></select>
                                 <div class="genre-description">
-                                    Доступні синтетичні інструменти: <strong>Piano</strong>, <strong>Synth</strong>, <strong>Bass</strong>, <strong>Flute</strong>.
+                                    Доступні синтетичні інструменти: <strong>Піаніно</strong>, <strong>Синтезатор</strong>, <strong>Бас</strong>, <strong>Флейта</strong>.
                                 </div>
                                 <section class="instrument-section">
                                     <div class="reverse-header">
                                         <div>
-                                            <p class="mini-label">Polyphonic mode</p>
+                                            <p class="mini-label">Режим поліфонія</p>
                                             <h3>Додаткові інструменти</h3>
                                         </div>
-                                        <span class="math-badge">multi-function</span>
+                                        <span class="math-badge">Мультифункція</span>
                                     </div>
 
                                     <p class="reverse-copy">
@@ -93,8 +93,8 @@
                             </div>
 
                             <div class="options modern-options">
-                                <label><input type="checkbox" id="amplitude-modulation"> Використовувати гучність (volume modulation)</label>
-                                <label><input type="checkbox" id="vibrato"> Використовувати вібрато (vibrato)</label>
+                                <label><input type="checkbox" id="amplitude-modulation"> Використовувати гучність</label>
+                                <label><input type="checkbox" id="vibrato"> Використовувати вібрато </label>
                             </div>
 
                             <div class="audio-controls modern-audio-controls">
@@ -136,16 +136,16 @@
                                     <p class="mini-label">Математична модель</p>
                                     <h3>Що відбувається всередині</h3>
                                 </div>
-                                <span class="math-badge">f(x) → sound</span>
+                                <span class="math-badge">f(x) → звук</span>
                             </div>
                             <p class="math-summary">Функція дискретизується на інтервалі, значення нормалізуються і переводяться у висоту, гучність та часову структуру нот.</p>
                             <ul class="math-list">
-                                <li><strong>Pop:</strong> квантування до діатонічної множини.</li>
-                                <li><strong>Jazz:</strong> swing та робота в просторі mod 12.</li>
-                                <li><strong>EDM:</strong> ритмічні акценти та басові зсуви.</li>
+                                <li><strong>Поп:</strong> квантування до діатонічної множини.</li>
+                                <li><strong>Джаз:</strong> swing та робота в просторі mod 12.</li>
+                                <li><strong>Електронна танцювальна музика:</strong> ритмічні акценти та басові зсуви.</li>
                                 <li><strong>Інструмент:</strong> впливає на хвильову форму та огинаючу.</li>
                             </ul>
-                            <p class="math-explanation">Окремо додано модуль <strong>Music → Graph</strong>, який аналізує аудіофайл і будує зворотний графік на основі хвильової форми та згладженої амплітуди.</p>
+                            <p class="math-explanation">Окремо додано модуль <strong>Музика → Функція</strong>, який аналізує аудіофайл і будує зворотний графік на основі хвильової форми та згладженої амплітуди.</p>
                         </section>
                     </div>
 
@@ -174,7 +174,6 @@
                             <button class="btn-pause">Пауза</button>
                             <button class="btn-stop">Стоп</button>
                             <button class="btn-save">Зберегти</button>
-                            <button class="btn-modify">Змінити</button>
                         </div>
                     </div>
                 
@@ -182,8 +181,8 @@
                     <section class="reverse-section">
                         <div class="reverse-header">
                             <div>
-                                <p class="mini-label">Reverse mode</p>
-                                <h3>Music → Graph</h3>
+                                <p class="mini-label">Музика → зворотний графік</p>
+                                <h3>Музика → Функція</h3>
                             </div>
                             <span class="math-badge">audio → plot</span>
                         </div>
@@ -261,19 +260,19 @@
                         <div class="quick-setting">
                             <label>Жанр</label>
                             <select id="exampleGenre" class="genre-select">
-                                <option value="original">Original</option>
-                                <option value="pop">Pop</option>
-                                <option value="jazz">Jazz</option>
-                                <option value="edm">EDM</option>
+                                <option value="original">Оригінальний</option>
+                                <option value="pop">Поп</option>
+                                <option value="jazz">Джаз</option>
+                                <option value="edm">Електронна танцювальна музика</option>
                             </select>
                         </div>
                         <div class="quick-setting">
                             <label>Інструмент</label>
                             <select id="exampleInstrument" class="genre-select">
-                                <option value="piano">Piano</option>
-                                <option value="synth">Synth</option>
-                                <option value="bass">Bass</option>
-                                <option value="flute">Flute</option>
+                                <option value="piano">Піаніно</option>
+                                <option value="synth">Синтезатор</option>
+                                <option value="bass">Бас</option>
+                                <option value="flute">Флейта</option>
                             </select>
                         </div>
                     </div>
@@ -283,7 +282,7 @@
                         <div class="example-card" data-category="trig">
                             <div class="example-card-top">
                                 <span class="example-tag">Тригонометрична</span>
-                                <h3>Синусоїда</h3>
+                                <h3>Синус</h3>
                                 <div class="function">sin(x)</div>
                                 <div class="example-graph" data-function="sin(x)"></div>
                                 <p>Класична хвильова форма — плавні переходи між нотами</p>
@@ -494,7 +493,7 @@
                             <div class="info-big-card-icon">𝑓(𝑥)</div>
                             <h3>Що це таке</h3>
                             <p>Graph to Music — це застосунок, що перетворює математичні функції на музику. Предмет дослідження — <strong>математика</strong>: як форма, амплітуда, частота і характер функції визначають звукову структуру мелодії.</p>
-                            <p>Синусоїда звучить плавно. Кубічна функція — з наростанням. FM-модуляція — як електронний синтезатор. Кожна функція має свій унікальний музичний «портрет».</p>
+                            <p>Синус звучить плавно. Кубічна функція — з наростанням. FM-модуляція — як електронний синтезатор. Кожна функція має свій унікальний музичний «портрет».</p>
                         </div>
 
                         <div class="info-big-card">
@@ -504,11 +503,11 @@
                                 <div class="info-mode">
                                     <span class="info-mode-badge">f(x) → 🎵</span>
                                     <strong>Функція → Музика</strong>
-                                    <p>Введіть математичну функцію — отримайте мелодію. Доступні жанри (Pop, Jazz, EDM) і чотири інструменти.</p>
+                                    <p>Введіть математичну функцію — отримайте мелодію. Доступні жанри (Поп, Джаз, Електронна танцювальна музика) і чотири інструменти.</p>
                                 </div>
                                 <div class="info-mode">
                                     <span class="info-mode-badge">🎵 → f(x)</span>
-                                    <strong>Музика → Графік</strong>
+                                    <strong>Музика → Функція</strong>
                                     <p>Завантажте аудіофайл — отримайте графік сигналу з математичним аналізом та апроксимацією.</p>
                                 </div>
                             </div>
@@ -532,7 +531,7 @@
                             <div class="info-step">
                                 <div class="info-step-num">3</div>
                                 <strong>Жанрове перетворення</strong>
-                                <p>Pop — квантування до діатонічної гами. Jazz — swing і простір mod 12. EDM — ритмічні акценти</p>
+                                <p>Поп — квантування до діатонічної гами. Джаз — swing і простір mod 12. Електронна танцювальна музика — ритмічні акценти</p>
                             </div>
                             <div class="info-step">
                                 <div class="info-step-num">4</div>
@@ -548,12 +547,12 @@
                             <div class="info-feature-card">
                                 <span>🎹</span>
                                 <strong>4 інструменти</strong>
-                                <p>Piano, Synth, Bass, Flute — кожен з унікальною хвильовою формою</p>
+                                <p>Піаніно, Синтезатор, Бас, Флейта — кожен з унікальною хвильовою формою</p>
                             </div>
                             <div class="info-feature-card">
                                 <span>🎼</span>
                                 <strong>4 жанри</strong>
-                                <p>Original, Pop, Jazz, EDM — різні математичні перетворення нотного ряду</p>
+                                <p>Оригінальний, Поп, Джаз, Електронна танцювальна музика — різні математичні перетворення нотного ряду</p>
                             </div>
                             <div class="info-feature-card">
                                 <span>🎸</span>
@@ -567,7 +566,7 @@
                             </div>
                             <div class="info-feature-card">
                                 <span>🔬</span>
-                                <strong>Music → Graph</strong>
+                                <strong>Музика → Функція</strong>
                                 <p>Зворотний модуль: аудіофайл → графік → математична апроксимація</p>
                             </div>
                             <div class="info-feature-card">
@@ -630,13 +629,13 @@
                         <div class="instruction-card">
                             <div class="instruction-icon">🎼</div>
                             <strong>Оберіть жанр</strong>
-                            <p>Pop, Jazz, EDM або Original</p>
+                            <p>Поп, Джаз, Електронна танцювальна музика або Оригінальний</p>
                         </div>
 
                         <div class="instruction-card">
                             <div class="instruction-icon">🎹</div>
                             <strong>Оберіть інструмент</strong>
-                            <p>Piano, Bass, Synth або Flute</p>
+                            <p>Піаніно, Бас, Синтезатор або Флейта</p>
                         </div>
 
                         <div class="instruction-card">
@@ -865,19 +864,19 @@
                             <div class="settings-field">
                                 <label>Жанр</label>
                                 <select class="genre-select" id="settings-genre">
-                                    <option value="original">Original</option>
-                                    <option value="pop">Pop</option>
-                                    <option value="jazz">Jazz</option>
-                                    <option value="edm">EDM</option>
+                                    <option value="original">Оригінальний</option>
+                                    <option value="pop">Поп</option>
+                                    <option value="jazz">Джаз</option>
+                                    <option value="edm">Електронна танцювальна музика</option>
                                 </select>
                             </div>
                             <div class="settings-field">
                                 <label>Інструмент</label>
                                 <select class="genre-select" id="settings-instrument">
-                                    <option value="piano">Piano</option>
-                                    <option value="synth">Synth</option>
-                                    <option value="bass">Bass</option>
-                                    <option value="flute">Flute</option>
+                                    <option value="piano">Піаніно</option>
+                                    <option value="synth">Синтезатор</option>
+                                    <option value="bass">Бас</option>
+                                    <option value="flute">Флейтв</option>
                                 </select>
                             </div>
                             <div class="settings-field">

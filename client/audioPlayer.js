@@ -588,6 +588,18 @@ function processAudioFromFunction(functionData, options = {}) {
     if (playerLabel) playerLabel.textContent = 'Натисніть, щоб послухати результат';
 
     window.visualization?.drawFunctionGraph?.(functionData.functionString, mergedOptions.xRange, audioData);
+
+
+    if (window.effectSettings) {
+        if (audioData.tracks?.length) {
+            audioData.tracks.forEach(track => {
+                track.notes = window.applyEffectsToNotes(track.notes);
+            });
+            audioData.notes = audioData.tracks.flatMap(t => t.notes);
+        } else if (audioData.notes) {
+            audioData.notes = window.applyEffectsToNotes(audioData.notes);
+        }
+    }
     return audioData;
 }
 

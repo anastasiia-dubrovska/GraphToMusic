@@ -1,12 +1,12 @@
 const INSTRUMENT_LIST = {
-    piano: { name: 'Piano', waveforms: ['triangle', 'sine'], attack: 0.02, release: 0.18, brightness: 2200 },
-    synth: { name: 'Synth', waveforms: ['sawtooth', 'square'], attack: 0.01, release: 0.12, brightness: 3200 },
-    bass: { name: 'Bass', waveforms: ['sine'], attack: 0.03, release: 0.16, brightness: 900 },
-    flute: { name: 'Flute', waveforms: ['sine', 'triangle'], attack: 0.08, release: 0.25, brightness: 2600 },
-    guitar: { name: 'Guitar', waveforms: ['square', 'triangle'], attack: 0.02, release: 0.22, brightness: 1800 },
-    violin: { name: 'Violin', waveforms: ['sawtooth', 'triangle'], attack: 0.09, release: 0.3, brightness: 2800 },
-    bell: { name: 'Bell', waveforms: ['sine', 'triangle'], attack: 0.005, release: 0.45, brightness: 4200 },
-    pad: { name: 'Ambient Pad', waveforms: ['triangle', 'sine'], attack: 0.25, release: 0.55, brightness: 1600 }
+    piano: { name: 'Піаніно', waveforms: ['triangle', 'sine'], attack: 0.02, release: 0.18, brightness: 2200 },
+    synth: { name: 'Синтезатор', waveforms: ['sawtooth', 'square'], attack: 0.01, release: 0.12, brightness: 3200 },
+    bass: { name: 'Бас', waveforms: ['sine'], attack: 0.03, release: 0.16, brightness: 900 },
+    flute: { name: 'Флейта', waveforms: ['sine', 'triangle'], attack: 0.08, release: 0.25, brightness: 2600 },
+    guitar: { name: 'Гітара', waveforms: ['square', 'triangle'], attack: 0.02, release: 0.22, brightness: 1800 },
+    violin: { name: 'Скрипка', waveforms: ['sawtooth', 'triangle'], attack: 0.09, release: 0.3, brightness: 2800 },
+    bell: { name: 'Дзвіночок', waveforms: ['sine', 'triangle'], attack: 0.005, release: 0.45, brightness: 4200 },
+    pad: { name: 'Ембіент', waveforms: ['triangle', 'sine'], attack: 0.25, release: 0.55, brightness: 1600 }
 };
 
 let extraInstrumentCounter = 0;

@@ -225,16 +225,15 @@ function authenticateToken(req, res, next) {
         }
     });
 
-    // Тимчасове сховище токенів { token: { email, expires } }
+
     const resetTokens = new Map();
 
-    // POST /api/auth/forgot-password
     app.post('/api/auth/forgot-password', async (req, res) => {
         const { email } = req.body;
         try {
             const user = await usersCollection.findOne({ email });
             if (!user) {
-                // Не кажемо що юзера немає — з міркувань безпеки
+
                 return res.json({ success: true });
             }
 
@@ -263,7 +262,7 @@ function authenticateToken(req, res, next) {
         }
     });
 
-    // GET /api/auth/reset-password/:token — перевірка токена
+
     app.get('/api/auth/reset-password/:token', (req, res) => {
         const { token } = req.params;
         const data = resetTokens.get(token);
@@ -275,7 +274,6 @@ function authenticateToken(req, res, next) {
         res.json({ success: true });
     });
 
-    // POST /api/auth/reset-password — збереження нового пароля
     app.post('/api/auth/reset-password', async (req, res) => {
         const { token, newPassword } = req.body;
         const data = resetTokens.get(token);

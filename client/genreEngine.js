@@ -4,7 +4,7 @@ const EDM_SCALE = [0, 2, 3, 5, 7, 8, 10];
 
 const INSTRUMENT_PRESETS = {
     piano: {
-        name: 'Piano',
+        name: 'Піаніно',
         waveforms: ['triangle', 'sine'],
         attack: 0.01,
         release: 0.18,
@@ -12,7 +12,7 @@ const INSTRUMENT_PRESETS = {
         detune: 0
     },
     synth: {
-        name: 'Synth',
+        name: 'Синтезатор',
         waveforms: ['sawtooth', 'square'],
         attack: 0.02,
         release: 0.12,
@@ -20,7 +20,7 @@ const INSTRUMENT_PRESETS = {
         detune: 4
     },
     bass: {
-        name: 'Bass',
+        name: 'Бас',
         waveforms: ['square', 'sine'],
         attack: 0.015,
         release: 0.14,
@@ -28,7 +28,7 @@ const INSTRUMENT_PRESETS = {
         detune: 0
     },
     flute: {
-        name: 'Flute',
+        name: 'Флейта',
         waveforms: ['sine', 'triangle'],
         attack: 0.04,
         release: 0.2,
@@ -66,13 +66,13 @@ function quantizeMidiToScale(midi, scale) {
 function getGenreDescription(genre) {
     switch (genre) {
         case 'pop':
-            return '<strong>Pop:</strong> діатонічне квантування до множини S = {0,2,4,5,7,9,11} mod 12, рівномірний ритм і стабільна гармонічна поведінка.';
+            return '<strong>Поп:</strong> діатонічне квантування до множини S = {0,2,4,5,7,9,11} mod 12, рівномірний ритм і стабільна гармонічна поведінка.';
         case 'jazz':
-            return '<strong>Jazz:</strong> робота в просторі mod 12, джазова шкала, акордові наближення та swing-ритм через нерівномірний поділ часу.';
+            return '<strong>Джаз:</strong> робота в просторі mod 12, джазова шкала, акордові наближення та swing-ритм через нерівномірний поділ часу.';
         case 'edm':
-            return '<strong>EDM:</strong> ритмічні акценти, спектрально яскравіший тембр, басові просадки та пульсуюча амплітуда.';
+            return '<strong>Електронна танцювальна музика:</strong> ритмічні акценти, спектрально яскравіший тембр, басові просадки та пульсуюча амплітуда.';
         default:
-            return '<strong>Original:</strong> пряме перетворення значень функції у висоти без жанрового обмеження.';
+            return '<strong>Оригінальний:</strong> пряме перетворення значень функції у висоти без жанрового обмеження.';
     }
 }
 
